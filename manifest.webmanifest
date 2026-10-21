@@ -1,0 +1,19 @@
+{
+  "name": "Калорія",
+  "short_name": "Калорія",
+  "description": "Калорійність страви по фото: інгредієнти, частки, КБЖВ і денна ціль.",
+  "lang": "uk",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "id": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f3f5f0",
+  "theme_color": "#3f6b2a",
+  "categories": ["health", "food", "lifestyle"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

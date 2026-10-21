@@ -1,0 +1,8 @@
+{
+  "name": "kaloriya",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "description": "Калорія — калорійність страви по фото (PWA)",
+  "engines": { "node": ">=18" }
+}
