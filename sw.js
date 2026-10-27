@@ -1,5 +1,5 @@
 // Калорія service worker: app shell works offline; analysis always goes to the network.
-const VERSION = "kaloriya-v0.5.1";
+const VERSION = "kaloriya-v0.6.0";
 const SHELL = ["/", "/index.html", "/app.css", "/i18n.js", "/app.js", "/manifest.webmanifest",
   "/icons/icon-192.png", "/icons/icon-512.png", "/icons/apple-touch-icon.png"];
 
@@ -17,18 +17,24 @@ self.addEventListener("activate", e => {
 self.addEventListener("fetch", e => {
   const req = e.request;
   const url = new URL(req.url);
-  if (req.method !== "GET" || url.pathname.startsWith("/api/")) return;   // never cache the API
+  if (req.method !== "GET") return;
+  const sameOrigin = url.origin === self.location.origin;
+  const isFont = url.hostname === "fonts.googleapis.com" || url.hostname === "fonts.gstatic.com";
+  // Only the app's own files and fonts. Supabase (account data, photos) and /api/ always go straight to the network.
+  if ((!sameOrigin && !isFont) || (sameOrigin && url.pathname.startsWith("/api/"))) return;
 
-  // Pages: network first so updates arrive, cache as offline fallback
-  if (req.mode === "navigate") {
+  // App files: network first so updates arrive at once, cache as the offline fallback
+  if (sameOrigin) {
     e.respondWith(
-      fetch(req).then(r => { const copy = r.clone(); caches.open(VERSION).then(c => c.put("/", copy)); return r; })
-        .catch(() => caches.match("/"))
+      fetch(req).then(r => {
+        if (r.ok) { const copy = r.clone(); caches.open(VERSION).then(c => c.put(req.mode === "navigate" ? "/" : req, copy)); }
+        return r;
+      }).catch(() => caches.match(req.mode === "navigate" ? "/" : req))
     );
     return;
   }
 
-  // Static files and fonts: cache first, refresh in the background
+  // Fonts: cache first, refresh in the background
   e.respondWith(
     caches.match(req).then(hit => {
       const net = fetch(req).then(r => {

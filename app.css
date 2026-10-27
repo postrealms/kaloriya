@@ -188,3 +188,13 @@ button,input,textarea{font-family:inherit}
 .donate a.ghost{color:var(--fg)}
 .nudge{background:var(--soft);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
 .nudge p{margin:0;font-size:14px}
+
+/* account */
+.signin-card h2{font:500 16px/1.3 var(--display)}
+.signin-card p{margin:0;color:var(--muted);font-size:14px}
+.acc-row{flex-direction:row;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.acc-row-t{display:flex;flex-direction:column;gap:4px;min-width:0}
+.acc-row-t span:last-child{overflow-wrap:anywhere}
+.acc-who{margin:0;font-weight:600;overflow-wrap:anywhere}
+.code-input{letter-spacing:.3em;text-align:center;font-size:24px!important}
+#accEmailForm,#accCodeForm{display:contents}

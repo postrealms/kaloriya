@@ -8,6 +8,12 @@ const DONATE = {
   kofi: "https://ko-fi.com/postrealms_creative",
 };
 
+/* Supabase project (publishable key is public by design; data is protected by row-level security) */
+const SB = {
+  url: "https://fwfngptvjnclngxvknza.supabase.co",
+  key: "sb_publishable_sIq7rRUa3wd3s1aEPwiVRw_lbHEAwF6",
+};
+
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const COLORS = ["--c1","--c2","--c3","--c4","--c5","--c6","--c7","--c8"].map(v=>`var(${v})`);
@@ -16,7 +22,8 @@ let file = null, ctl = null, stream = null, lastResult = null, view = "new";
 /* ---------- storage helpers ---------- */
 const ls = {
   get(k){ try{ return localStorage.getItem(k); }catch{ return null; } },
-  set(k,v){ try{ localStorage.setItem(k,v); }catch{} }
+  set(k,v){ try{ localStorage.setItem(k,v); }catch{} },
+  del(k){ try{ localStorage.removeItem(k); }catch{} }
 };
 
 /* ---------- language ---------- */
@@ -43,7 +50,7 @@ function applyI18n(){
   $$("[data-i18n-aria]").forEach(el => el.setAttribute("aria-label", t(el.dataset.i18nAria)));
   $$("[data-i18n-alt]").forEach(el => el.alt = t(el.dataset.i18nAlt));
   $("#tabs").setAttribute("aria-label", t("tab.new") + " / " + t("tab.hist"));
-  renderLangs(); renderDonate(); renderInstall();
+  renderLangs(); renderDonate(); renderInstall(); if(typeof renderAuthState === "function" && $("#accTitle")) renderAuthState();
   if(lastResult) render(lastResult.d, lastResult.W, false); else render(EXAMPLES[lang], 380, true);
   renderHistory(); renderGoal();
   if(view === "detail" && current) openDetail(current);
@@ -54,6 +61,7 @@ function setLang(pref){
   lang = pref === "auto" || !LANGS[pref] ? deviceLang() : pref;
   setStatus("");
   applyI18n();
+  if(session) saveProfile({lang: pref}).catch(()=>{});
 }
 
 /* ---------- formatting ---------- */
@@ -85,6 +93,8 @@ const idb = (()=>{
     del: id => tx("meals","readwrite", s=>s.delete(id)),
     get: k => tx("kv","readonly", s=>s.get(k)),
     set: (k,v) => tx("kv","readwrite", s=>s.put(v,k)),
+    delKey: k => tx("kv","readwrite", s=>s.delete(k)),
+    clear: () => tx("meals","readwrite", s=>s.clear()),
   };
 })();
 
@@ -219,12 +229,23 @@ async function toJpeg(f, max, q){
 
 /* ---------- access code + API ---------- */
 const accessCode = () => ls.get("kaloriya.code") || "";
+let authRequired = false, usage = null;
+async function apiHeaders(extra){
+  const h = {"x-access-code": accessCode(), ...(extra||{})};
+  const tok = session ? await accessToken().catch(()=>null) : null;
+  if(tok) h.Authorization = "Bearer " + tok;
+  return h;
+}
 async function checkAccess(){
   try{
-    const r = await fetch("/api/analyze", {headers:{"x-access-code":accessCode()}});
+    const r = await fetch("/api/analyze", {headers: await apiHeaders()});
     const j = await r.json();
     $("#gate").hidden = !(j.codeRequired && !j.codeOk);
+    authRequired = !!j.authRequired;
+    if(authRequired && session && j.signedIn === false){ saveSession(null); onAuthChange(); }
+    usage = j.usage || null;
   }catch{ /* offline: let the user try later */ }
+  renderAuthState();
 }
 $("#gateForm").addEventListener("submit", async e=>{
   e.preventDefault();
@@ -237,16 +258,19 @@ $("#gateInput").addEventListener("input", ()=>$("#gateInput").setCustomValidity(
 async function analyze(image, W, hint, signal){
   const res = await fetch("/api/analyze", {
     method:"POST", signal,
-    headers:{"content-type":"application/json", "x-access-code":accessCode()},
+    headers: await apiHeaders({"content-type":"application/json"}),
     body: JSON.stringify({image, mediaType:"image/jpeg", weight:W, hint, lang})
   });
   const j = await res.json().catch(()=>({}));
+  if(j.usage) { usage = j.usage; renderAuthState(); }
   if(!res.ok){ const e = new Error(j.code || "generic"); e.status = res.status; e.code = j.code; throw e; }
+  if(j._usage){ usage = j._usage; delete j._usage; renderAuthState(); }
   return j;
 }
 
 $("#go").addEventListener("click", async ()=>{
   const W = weight(); if(!file || !W || ctl) return;
+  if(authRequired && !session){ openAccount(); return; }
   ctl = new AbortController(); refresh(); $("#stop").hidden = false; $("#nudge").hidden = true;
   setStatus(t("st.working"), false, true);
   const hint = $("#hintText").value.trim();
@@ -266,7 +290,9 @@ $("#go").addEventListener("click", async ()=>{
   }catch(e){
     if(e.name === "AbortError") setStatus("");
     else if(e.message === "decode") setStatus(t("st.decode"), true);
+    else if(e.status === 401 && e.code === "signin"){ saveSession(null); onAuthChange(); setStatus(t("err.signin"), true); }
     else if(e.status === 401){ setStatus(t("err.code"), true); $("#gate").hidden = false; window.scrollTo({top:0}); }
+    else if(e.code === "daily_limit") setStatus(t("err.daily_limit",{n: usage?.limit || ""}), true);
     else if(!e.status && !navigator.onLine) setStatus(t("st.offline"), true);
     else if(!e.status) setStatus(t("err.network"), true);
     else {
@@ -281,8 +307,18 @@ $("#go").addEventListener("click", async ()=>{
 /* ---------- history ---------- */
 let hist = [], current = null, delTimer = null, goal = 0, goalEditing = false;
 
-async function loadHistory(){
-  try{ hist = (await idb.all()).sort((a,b)=>b.createdAt-a.createdAt); }catch{ hist = []; }
+let remote = [], pendingCount = 0;
+async function loadHistory(fetchRemote){
+  let local = [];
+  try{ local = await idb.all(); }catch{}
+  pendingCount = local.length;
+  if(session && fetchRemote !== false){
+    try{ remote = await fetchMeals(); idb.set("remoteCache", remote).catch(()=>{}); }
+    catch{ if(!remote.length){ try{ remote = (await idb.get("remoteCache")) || []; }catch{} } }
+  }
+  if(!session) remote = [];
+  const ids = new Set(local.map(x=>x.id));
+  hist = [...local.map(x=>({...x, _local:true})), ...remote.filter(x=>!ids.has(x.id))].sort((a,b)=>b.createdAt-a.createdAt);
   renderHistory(); renderGoal();
 }
 async function saveAnalysis(d, W, hint, f){
@@ -291,7 +327,10 @@ async function saveAnalysis(d, W, hint, f){
   const rec = {id: Date.now().toString(36)+Math.random().toString(36).slice(2,6), createdAt:Date.now(),
     dish:String(d.dish||t("dish.default")), weight:W, kcal:Math.round(c.kcal), protein:r1(c.protein), fat:r1(c.fat), carbs:r1(c.carbs),
     hint, lang, analysis:d, thumb};
-  try{ await idb.put(rec); await loadHistory(); return true; }catch{ return false; }
+  try{ await idb.put(rec); }catch{ return false; }
+  await loadHistory(false);
+  if(session) syncPending().catch(()=>{});
+  return true;
 }
 
 function dayDiff(ts){
@@ -309,7 +348,7 @@ const timeOf = ts => new Date(ts).toLocaleTimeString(loc(),{hour:"2-digit",minut
 
 function renderHistory(){
   $("#histCount").textContent = hist.length ? hist.length : "";
-  $("#histNote").textContent = hist.length ? t("h.local") : "";
+  $("#histNote").textContent = !hist.length ? "" : session ? t("h.account") + (pendingCount ? " " + t("h.pending",{n:pendingCount}) : "") : t("h.local");
   if(!hist.length){
     $("#histList").innerHTML = `<div class="empty"><b>${t("h.emptyT")}</b>${t("h.emptyX")}</div>`;
     return;
@@ -324,7 +363,7 @@ function renderHistory(){
     <section class="day">
       <div class="dayhead"><b>${esc(g.k)}</b><span class="${goal && g.kcal>goal?'over':''}">${n0(g.kcal)}${goal?' / '+n0(goal):''} ${t("kcal")}</span></div>
       ${g.items.map(r=>`<button class="item" type="button" data-id="${esc(r.id)}">
-        ${r.thumb?`<img src="${esc(r.thumb)}" alt="">`:'<span class="ph"></span>'}
+        ${r.thumb?`<img src="${esc(r.thumb)}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'ph'}))">`:'<span class="ph"></span>'}
         <span class="t"><b>${esc(r.dish)}</b><small>${timeOf(r.createdAt)} · ${n0(r.weight)} ${t("g")}</small></span>
         <span class="k">${n0(r.kcal)}<small>${t("h.kcalUp")}</small></span>
       </button>`).join("")}
@@ -361,6 +400,7 @@ $("#goalForm").addEventListener("submit", async e=>{
   goal = g; goalEditing = false;
   try{ await idb.set("goal", g); }catch{ ls.set("kaloriya.goal", String(g)); }
   renderGoal(); renderHistory();
+  if(session) saveProfile({goal: g}).catch(()=>{});
 });
 async function loadGoal(){
   try{ goal = +(await idb.get("goal"))||0; }catch{ goal = 0; }
@@ -378,6 +418,7 @@ function show(v){
   $("#viewHist").hidden = v!=="hist";
   $("#viewDetail").hidden = v!=="detail";
   $("#viewSettings").hidden = v!=="settings";
+  $("#viewAccount").hidden = v!=="account";
   $("#tabNew").setAttribute("aria-selected", v==="new");
   $("#tabHist").setAttribute("aria-selected", v==="hist" || v==="detail");
   window.scrollTo({top:0});
@@ -405,13 +446,16 @@ $("#del").addEventListener("click", async ()=>{
     delTimer = setTimeout(resetDel, 4000); return;
   }
   resetDel();
-  try{ await idb.del(current.id); }catch{}
-  current = null; await loadHistory(); show("hist");
+  try{
+    if(current._local) await idb.del(current.id);
+    else { await deleteMeal(current); remote = remote.filter(x=>x.id!==current.id); }
+  }catch{ setStatus(t("err.network"), true); }
+  current = null; await loadHistory(false); show("hist");
 });
 
 /* ---------- settings: language + support ---------- */
 let returnView = "new";
-$("#openSettings").addEventListener("click", ()=>{ if(view!=="settings") returnView = view==="detail" ? "hist" : view; show("settings"); });
+$("#openSettings").addEventListener("click", ()=>{ if(view!=="settings" && view!=="account") returnView = view==="detail" ? "hist" : view; show("settings"); });
 $("#settingsBack").addEventListener("click", ()=>show(returnView));
 
 function renderLangs(){
@@ -451,6 +495,224 @@ function snoozeNudge(){ ls.set("kaloriya.nudgeAt", String(Date.now())); $("#nudg
 $("#nudgeLater").addEventListener("click", snoozeNudge);
 $("#nudgeGo").addEventListener("click", ()=>{ snoozeNudge(); returnView = "new"; show("settings"); $("#support").scrollIntoView({block:"start"}); });
 
+/* ---------- account: Supabase Auth + REST, no SDK ---------- */
+let session = null;
+try{ session = JSON.parse(ls.get("kaloriya.session") || "null"); }catch{}
+function saveSession(s){ session = s; s ? ls.set("kaloriya.session", JSON.stringify(s)) : ls.del("kaloriya.session"); }
+
+async function sbAuth(path, body, token){
+  const r = await fetch(SB.url + "/auth/v1/" + path, {
+    method:"POST",
+    headers:{apikey:SB.key, "content-type":"application/json", ...(token ? {Authorization:"Bearer "+token} : {})},
+    body: JSON.stringify(body || {})
+  });
+  const j = await r.json().catch(()=>({}));
+  if(!r.ok){ const e = new Error(j.msg || j.error_description || j.message || "auth"); e.status = r.status; e.code = j.error_code || j.code || j.error; throw e; }
+  return j;
+}
+const toSession = (j, user) => ({access_token:j.access_token, refresh_token:j.refresh_token,
+  expires_at: Date.now() + (j.expires_in || 3600)*1000, user: user || {id:j.user?.id, email:j.user?.email}});
+
+let refreshing = null;
+async function accessToken(){
+  if(!session) return null;
+  if(Date.now() < session.expires_at - 60000) return session.access_token;
+  refreshing ||= sbAuth("token?grant_type=refresh_token", {refresh_token: session.refresh_token})
+    .then(j => saveSession(toSession(j, session.user)))
+    .catch(e => { if(e.status === 400 || e.status === 401){ saveSession(null); onAuthChange(); } throw e; })
+    .finally(() => { refreshing = null; });
+  await refreshing;
+  return session?.access_token || null;
+}
+
+async function sb(path, {method="GET", json, body, headers={}} = {}){
+  const tok = await accessToken();
+  if(!tok){ const e = new Error("signin"); e.status = 401; throw e; }
+  const r = await fetch(SB.url + path, {method,
+    headers:{apikey:SB.key, Authorization:"Bearer "+tok, ...(json!==undefined ? {"content-type":"application/json"} : {}), ...headers},
+    body: json!==undefined ? JSON.stringify(json) : body});
+  const text = await r.text();
+  if(!r.ok){ const e = new Error(text.slice(0,200) || "sb"); e.status = r.status; throw e; }
+  return text ? JSON.parse(text) : null;
+}
+
+const uid = () => session?.user?.id;
+const thumbPath = id => `${uid()}/${id}.jpg`;
+async function dataUrlToBlob(u){ return (await fetch(u)).blob(); }
+
+async function fetchMeals(){
+  const rows = await sb("/rest/v1/meals?select=id,created_at,dish,weight,kcal,protein,fat,carbs,hint,lang,analysis,thumb_path&order=created_at.desc&limit=1000");
+  const paths = rows.map(r=>r.thumb_path).filter(Boolean);
+  const urls = {};
+  for(let i=0; i<paths.length; i+=200){
+    try{
+      const signed = await sb("/storage/v1/object/sign/thumbs", {method:"POST", json:{expiresIn: 60*60*24, paths: paths.slice(i, i+200)}});
+      for(const x of signed || []) if(x.signedURL) urls[x.path] = SB.url + "/storage/v1" + x.signedURL;
+    }catch{}
+  }
+  return rows.map(r=>({id:r.id, createdAt:Date.parse(r.created_at), dish:r.dish, weight:r.weight, kcal:r.kcal,
+    protein:r.protein, fat:r.fat, carbs:r.carbs, hint:r.hint||"", lang:r.lang, analysis:r.analysis,
+    thumb_path:r.thumb_path, thumb: urls[r.thumb_path] || ""}));
+}
+
+let syncing = null;
+async function syncPending(){
+  if(!session || !navigator.onLine) return 0;
+  syncing ||= (async ()=>{
+    const local = await idb.all().catch(()=>[]);
+    let moved = 0;
+    for(const m of local.sort((a,b)=>a.createdAt-b.createdAt)){
+      try{
+        let path = null;
+        if(m.thumb && m.thumb.startsWith("data:")){
+          path = thumbPath(m.id);
+          await sb("/storage/v1/object/thumbs/" + path, {method:"POST", body: await dataUrlToBlob(m.thumb),
+            headers:{"content-type":"image/jpeg", "x-upsert":"true"}});
+        }
+        await sb("/rest/v1/meals", {method:"POST", headers:{Prefer:"resolution=merge-duplicates,return=minimal"},
+          json:{id:m.id, created_at:new Date(m.createdAt).toISOString(), dish:m.dish, weight:m.weight, kcal:m.kcal,
+            protein:m.protein, fat:m.fat, carbs:m.carbs, hint:m.hint||null, lang:m.lang||lang, analysis:m.analysis, thumb_path:path}});
+        await idb.del(m.id); moved++;
+      }catch(e){ if(e.status === 401) break; }
+    }
+    if(moved) await loadHistory();
+    return moved;
+  })().finally(()=>{ syncing = null; });
+  return syncing;
+}
+
+async function deleteMeal(m){
+  await sb("/rest/v1/meals?id=eq." + encodeURIComponent(m.id), {method:"DELETE"});
+  if(m.thumb_path) await sb("/storage/v1/object/thumbs", {method:"DELETE", json:{prefixes:[m.thumb_path]}}).catch(()=>{});
+}
+
+async function saveProfile(fields){
+  if(!session) return;
+  await sb("/rest/v1/profiles", {method:"POST", headers:{Prefer:"resolution=merge-duplicates,return=minimal"},
+    json:{id: uid(), ...fields, updated_at: new Date().toISOString()}});
+}
+async function loadProfile(){
+  const rows = await sb("/rest/v1/profiles?select=goal,lang&id=eq." + uid());
+  const p = rows?.[0];
+  const patch = {};
+  if(p?.goal){ goal = p.goal; idb.set("goal", goal).catch(()=>{}); }
+  else if(goal) patch.goal = goal;
+  if(p?.lang && p.lang !== langPref){ langPref = p.lang; ls.set("kaloriya.lang", p.lang); lang = p.lang==="auto"||!LANGS[p.lang] ? deviceLang() : p.lang; applyI18n(); }
+  else if(!p?.lang) patch.lang = langPref;
+  if(Object.keys(patch).length) await saveProfile(patch);
+  renderGoal(); renderHistory();
+}
+
+/* sign-in flow: email → 6-digit code from the email */
+let pendingEmail = "", resendTimer = null;
+function authError(e){
+  const c = String(e.code || "") + " " + String(e.message || "");
+  if(e.status === 429 || /rate.?limit/i.test(c)) return t("err.too_many_emails");
+  if(/otp|token|expired|invalid.*(code|token)/i.test(c) || e.status === 403) return t("err.bad_code");
+  if(/email/i.test(c)) return t("err.email");
+  return navigator.onLine ? t("err.generic") : t("st.offline");
+}
+function accStatus(text, err){ $("#accStatus").textContent = text || ""; $("#accStatus").className = "status" + (err ? " err" : ""); }
+function startResendCooldown(){
+  let n = 60; clearInterval(resendTimer);
+  const tick = () => { $("#accResend").disabled = n > 0; $("#accResend").textContent = n > 0 ? t("acc.resendIn",{n}) : t("acc.resend"); n--; if(n < -1) clearInterval(resendTimer); };
+  tick(); resendTimer = setInterval(tick, 1000);
+}
+async function requestCode(email){
+  accStatus(""); $("#accSend").disabled = true;
+  try{
+    await sbAuth("otp", {email, create_user:true});
+    pendingEmail = email;
+    $("#accStep1").hidden = true; $("#accStep2").hidden = false;
+    $("#accSentTo").textContent = t("acc.codeSent",{e:email});
+    $("#accCode").value = ""; $("#accCode").focus();
+    startResendCooldown();
+  }catch(e){ accStatus(authError(e), true); }
+  finally{ $("#accSend").disabled = false; }
+}
+$("#accEmailForm").addEventListener("submit", e=>{ e.preventDefault(); const v = $("#accEmail").value.trim().toLowerCase(); if(v) requestCode(v); });
+$("#accResend").addEventListener("click", ()=>{ if(pendingEmail) requestCode(pendingEmail); });
+$("#accOther").addEventListener("click", ()=>{ $("#accStep2").hidden = true; $("#accStep1").hidden = false; accStatus(""); $("#accEmail").focus(); });
+$("#accCodeForm").addEventListener("submit", async e=>{
+  e.preventDefault();
+  const code = $("#accCode").value.replace(/\D/g, "");
+  if(code.length < 6) return;
+  $("#accVerify").disabled = true; accStatus("");
+  try{
+    const j = await sbAuth("verify", {type:"email", email: pendingEmail, token: code});
+    saveSession(toSession(j));
+    const hadLocal = (await idb.all().catch(()=>[])).length;
+    await onAuthChange(true);
+    setStatus(t("acc.welcome") + (hadLocal ? " " + t("acc.migrated") : ""));
+    show(returnView === "account" || returnView === "settings" ? "new" : returnView);
+  }catch(err){ accStatus(authError(err), true); }
+  finally{ $("#accVerify").disabled = false; }
+});
+$("#accCode").addEventListener("input", e=>{ const v = e.target.value.replace(/\D/g, ""); if(v !== e.target.value) e.target.value = v; });
+
+$("#accSignout").addEventListener("click", async ()=>{
+  const tok = session?.access_token;
+  saveSession(null);
+  if(tok) sbAuth("logout", {}, tok).catch(()=>{});
+  remote = []; idb.delKey("remoteCache").catch(()=>{});
+  await onAuthChange();
+  show("settings");
+});
+let delArmed = false, delAccTimer = null;
+$("#accDelete").addEventListener("click", async ()=>{
+  if(!delArmed){
+    delArmed = true; $("#accDelete").textContent = t("acc.deleteSure");
+    delAccTimer = setTimeout(()=>{ delArmed = false; $("#accDelete").textContent = t("acc.delete"); }, 5000);
+    return;
+  }
+  clearTimeout(delAccTimer); delArmed = false; $("#accDelete").disabled = true;
+  try{
+    const r = await fetch("/api/account", {method:"DELETE", headers: await apiHeaders()});
+    if(!r.ok) throw new Error("delete");
+    saveSession(null); remote = [];
+    await Promise.all([idb.clear(), idb.delKey("remoteCache"), idb.delKey("goal")]).catch(()=>{});
+    goal = 0; ls.del("kaloriya.goal");
+    await onAuthChange();
+    show("settings"); setStatus(t("acc.deleted"));
+    accStatus(t("acc.deleted"));
+  }catch{ accStatus(t("err.generic"), true); }
+  finally{ $("#accDelete").disabled = false; $("#accDelete").textContent = t("acc.delete"); }
+});
+
+function openAccount(){ if(view !== "account" && view !== "settings") returnView = view === "detail" ? "hist" : view; show("account"); }
+$("#accountBack").addEventListener("click", ()=>show(returnView === "account" ? "new" : returnView));
+$("#signinCardBtn").addEventListener("click", openAccount);
+$("#settingsAccountBtn").addEventListener("click", openAccount);
+
+function renderAuthState(){
+  const signedIn = !!session;
+  $("#signinCard").hidden = !(authRequired && !signedIn);
+  $("#accOut").hidden = signedIn;
+  $("#accIn").hidden = !signedIn;
+  $("#accTitle").textContent = signedIn ? t("acc.title") : t("acc.signinTitle");
+  if(signedIn){
+    $("#accWho").textContent = t("acc.signedAs",{e: session.user?.email || ""});
+    $("#accUsage").textContent = usage ? t("acc.usage",{u:usage.used, l:usage.limit}) : "";
+  }
+  $("#settingsAccountText").textContent = signedIn ? (session.user?.email || "") : t("acc.guest");
+  $("#settingsAccountBtn").textContent = signedIn ? t("acc.manage") : t("acc.signin");
+  $("#usageLine").textContent = signedIn && usage ? t("acc.usage",{u:usage.used, l:usage.limit}) : "";
+  $("#usageLine").hidden = !(signedIn && usage);
+}
+
+async function onAuthChange(justSignedIn){
+  renderAuthState();
+  if(session){
+    if(justSignedIn) await syncPending().catch(()=>{});
+    await Promise.all([loadProfile().catch(()=>{}), loadHistory()]);
+    checkAccess();
+  }else{
+    remote = [];
+    await loadHistory(false);
+  }
+}
+window.addEventListener("online", ()=>{ if(session) syncPending().catch(()=>{}); });
+
 /* ---------- install prompts (Android button, iPhone instructions) ---------- */
 let deferredPrompt = null, installMode = null;
 const isStandalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
@@ -475,7 +737,7 @@ window.addEventListener("languagechange", ()=>{ if(langPref === "auto") setLang(
 
 /* ---------- boot ---------- */
 applyI18n();
-loadHistory(); loadGoal(); checkAccess();
+loadGoal().then(()=>onAuthChange(!!session)); checkAccess();
 navigator.storage?.persist?.().catch(()=>{});
 if("serviceWorker" in navigator){
   window.addEventListener("load", ()=>navigator.serviceWorker.register("/sw.js").catch(()=>{}));

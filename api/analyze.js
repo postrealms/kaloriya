@@ -3,6 +3,10 @@
 //   ANTHROPIC_API_KEY  required — key from console.anthropic.com
 //   ACCESS_CODE        optional — if set, the app asks testers for this code
 //   CLAUDE_MODEL       optional — defaults to claude-sonnet-5-5
+//   SUPABASE_URL, SUPABASE_SECRET_KEY  — when both are set, analysis needs a signed-in user
+//   DAILY_LIMIT        optional — analyses per user per day, defaults to 15
+
+import { authEnabled, DAILY_LIMIT, getUser, rpc, usedToday } from "./_sb.js";
 
 const MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-5-5";
 const MAX_IMAGE_B64 = 4_000_000;          // ~3 MB image; the client sends ~0.3–0.8 MB
@@ -67,13 +71,25 @@ function extractJson(text) {
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
 
-  // Health / access check used by the app on start
+  // Health / access check used by the app on start; with a token it also reports today's usage
   if (req.method === "GET") {
-    return res.status(200).json({ ok: true, codeRequired: !!process.env.ACCESS_CODE, codeOk: codeOk(req) });
+    const out = { ok: true, codeRequired: !!process.env.ACCESS_CODE, codeOk: codeOk(req), authRequired: authEnabled };
+    if (authEnabled) {
+      const user = await getUser(req);
+      out.signedIn = !!user;
+      if (user) out.usage = { used: await usedToday(user.id).catch(() => 0), limit: DAILY_LIMIT };
+    }
+    return res.status(200).json(out);
   }
   if (req.method !== "POST") return res.status(405).json({ code: "generic", error: "Method not allowed" });
   if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ code: "server_config", error: "ANTHROPIC_API_KEY is not set" });
   if (!codeOk(req)) return res.status(401).json({ code: "code", error: "Access code required" });
+
+  let user = null;
+  if (authEnabled) {
+    user = await getUser(req);
+    if (!user) return res.status(401).json({ code: "signin", error: "Sign-in required" });
+  }
   if (rateLimited(req)) return res.status(429).json({ code: "rate", error: "Too many requests" });
 
   const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {});
@@ -86,6 +102,21 @@ export default async function handler(req, res) {
   if (!(W > 0 && W <= 5000)) return res.status(400).json({ code: "weight", error: "Weight must be 1–5000 g" });
   if (!image) return res.status(400).json({ code: "no_image", error: "No image" });
   if (image.length > MAX_IMAGE_B64) return res.status(413).json({ code: "too_big", error: "Image too large" });
+
+  // Daily limit: take one analysis now, give it back if Claude fails
+  let used = null;
+  if (user) {
+    try { used = await rpc("use_analysis", { p_user: user.id, p_limit: DAILY_LIMIT }); }
+    catch (e) {
+      console.error("usage rpc failed", e.message);
+      return res.status(500).json({ code: "server_config", error: "Usage tracking failed — has supabase/schema.sql been run?" });
+    }
+    if (used === null) return res.status(429).json({ code: "daily_limit", error: "Daily limit reached", usage: { used: DAILY_LIMIT, limit: DAILY_LIMIT } });
+  }
+  const fail = async (status, payload) => {
+    if (user) await rpc("refund_analysis", { p_user: user.id }).catch(() => {});
+    return res.status(status).json(payload);
+  };
 
   let r;
   try {
@@ -109,22 +140,24 @@ export default async function handler(req, res) {
       }),
     });
   } catch {
-    return res.status(502).json({ code: "network", error: "Could not reach Claude" });
+    return fail(502, { code: "network", error: "Could not reach Claude" });
   }
 
   const data = await r.json().catch(() => ({}));
   if (!r.ok) {
     console.error("Claude API error", r.status, JSON.stringify(data).slice(0, 500));
-    if (r.status === 429) return res.status(429).json({ code: "rate", error: "Claude rate limit" });
-    if (r.status === 529 || r.status >= 500) return res.status(503).json({ code: "overloaded", error: "Claude overloaded" });
-    if (r.status === 401) return res.status(500).json({ code: "server_config", error: "Invalid API key" });
-    if (r.status === 400 && /credit|balance/i.test(data?.error?.message || "")) return res.status(402).json({ code: "no_credit", error: "Out of API credit" });
-    return res.status(502).json({ code: "bad_image", error: "Claude could not process the image" });
+    if (r.status === 429) return fail(429, { code: "rate", error: "Claude rate limit" });
+    if (r.status === 529 || r.status >= 500) return fail(503, { code: "overloaded", error: "Claude overloaded" });
+    if (r.status === 401) return fail(500, { code: "server_config", error: "Invalid API key" });
+    if (r.status === 400 && /credit|balance/i.test(data?.error?.message || "")) return fail(402, { code: "no_credit", error: "Out of API credit" });
+    return fail(502, { code: "bad_image", error: "Claude could not process the image" });
   }
 
   const text = (data.content || []).filter(c => c.type === "text").map(c => c.text).join("\n");
   const json = extractJson(text);
-  if (!json) return res.status(502).json({ code: "parse", error: "Could not parse the response" });
+  if (!json) return fail(502, { code: "parse", error: "Could not parse the response" });
+  if (json.error) { if (user) await rpc("refund_analysis", { p_user: user.id }).catch(() => {}); used = used && used - 1; }
 
+  if (user) json._usage = { used, limit: DAILY_LIMIT };
   return res.status(200).json(json);
 }
