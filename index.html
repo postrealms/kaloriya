@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Калорія</title>
-<meta name="description" content="Калорійність страви по фото: інгредієнти, частки, КБЖВ і денна ціль.">
+<meta name="description" content="Калорійність страви по фото: інгредієнти, частки, КБЖВ і денна ціль. Calories from a meal photo.">
 <meta name="theme-color" content="#3f6b2a" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#141812" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="/manifest.webmanifest">
@@ -22,41 +22,46 @@
 <body>
 <div class="wrap">
   <header>
-    <h1>Кало<span>рія</span></h1>
-    <span class="tag">beta · v0.4</span>
+    <h1><span data-i18n="brand1">Кало</span><span class="acc" data-i18n="brand2">рія</span></h1>
+    <div class="head-r">
+      <span class="tag">beta · v0.5</span>
+      <button class="icon-btn" id="openSettings" type="button" data-i18n-aria="settings.open" aria-label="Налаштування">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.56-1.11 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1.03-1.56V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.56 1.03H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.56 1.03Z"/></svg>
+      </button>
+    </div>
   </header>
 
   <div class="install" id="installBar" hidden>
     <p id="installText"></p>
-    <button class="btn" id="installBtn" type="button" hidden>Встановити</button>
-    <button class="x" id="installClose" type="button" aria-label="Закрити">×</button>
+    <button class="btn" id="installBtn" type="button" data-i18n="install.btn" hidden>Встановити</button>
+    <button class="x" id="installClose" type="button" data-i18n-aria="close" aria-label="Закрити">×</button>
   </div>
 
   <section class="panel gate" id="gate" hidden>
-    <h2>Код доступу</h2>
-    <p>Застосунок у закритому тестуванні. Введи код, який тобі дали.</p>
+    <h2 data-i18n="gate.title">Код доступу</h2>
+    <p data-i18n="gate.text"></p>
     <form id="gateForm" class="gate">
-      <input id="gateInput" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Код" required>
-      <button class="btn" type="submit">Продовжити</button>
+      <input id="gateInput" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" data-i18n-ph="gate.ph" required>
+      <button class="btn" type="submit" data-i18n="gate.btn">Продовжити</button>
     </form>
   </section>
 
-  <nav class="tabs" role="tablist" aria-label="Розділи">
-    <button class="tab" id="tabNew" role="tab" aria-selected="true" type="button">Аналіз</button>
-    <button class="tab" id="tabHist" role="tab" aria-selected="false" type="button">Історія <span id="histCount" class="count"></span></button>
+  <nav class="tabs" id="tabs" role="tablist">
+    <button class="tab" id="tabNew" role="tab" aria-selected="true" type="button" data-i18n="tab.new">Аналіз</button>
+    <button class="tab" id="tabHist" role="tab" aria-selected="false" type="button"><span data-i18n="tab.hist">Історія</span> <span id="histCount" class="count"></span></button>
   </nav>
 
-  <section class="goal" id="goalCard" aria-label="Денна ціль">
+  <section class="goal" id="goalCard" data-i18n-aria="goal.aria">
     <div id="goalView">
-      <div class="goal-top"><span class="lbl">Сьогодні</span><button class="link" id="goalEdit" type="button">Змінити ціль</button></div>
+      <div class="goal-top"><span class="lbl" data-i18n="goal.today">Сьогодні</span><button class="link" id="goalEdit" type="button" data-i18n="goal.edit">Змінити ціль</button></div>
       <div class="goal-nums"><b id="goalEaten">0</b><span id="goalOf"></span></div>
-      <div class="meter" role="progressbar" aria-label="Прогрес денної цілі" id="goalMeter"><i id="goalBar"></i></div>
+      <div class="meter" role="progressbar" data-i18n-aria="goal.meter" id="goalMeter"><i id="goalBar"></i></div>
       <div class="goal-foot"><span id="goalLeft"></span><span id="goalMacro"></span></div>
     </div>
     <form id="goalForm" class="goal-form" hidden>
-      <label class="lbl" for="goalInput">Денна ціль калорій</label>
+      <label class="lbl" for="goalInput" data-i18n="goal.label">Денна ціль калорій</label>
       <div class="row">
-        <div class="weight"><input id="goalInput" type="number" inputmode="numeric" min="500" max="10000" placeholder="2000" required><span>ккал</span></div>
+        <div class="weight"><input id="goalInput" type="number" inputmode="numeric" min="500" max="10000" placeholder="2000" required><span data-i18n="kcal">ккал</span></div>
         <div class="chips" id="goalPresets">
           <button class="chip" data-g="1800" type="button">1800</button>
           <button class="chip" data-g="2200" type="button">2200</button>
@@ -64,48 +69,56 @@
         </div>
       </div>
       <div class="row">
-        <button class="btn" type="submit">Зберегти ціль</button>
-        <button class="btn ghost" type="button" id="goalCancel">Скасувати</button>
+        <button class="btn" type="submit" data-i18n="goal.save">Зберегти ціль</button>
+        <button class="btn ghost" type="button" id="goalCancel" data-i18n="cancel">Скасувати</button>
       </div>
     </form>
   </section>
 
   <div id="viewNew" class="view">
     <section class="panel" aria-labelledby="s1">
-      <div class="step"><span class="num">1</span><h2 id="s1">Фото тарілки</h2></div>
+      <div class="step"><span class="num">1</span><h2 id="s1" data-i18n="s1">Фото тарілки</h2></div>
       <div class="drop" id="drop">
-        <div class="hint" id="hint"><b>Сфотографуй страву</b>Зверху, при денному світлі, вся тарілка в кадрі</div>
-        <img id="preview" alt="Фото страви" hidden>
+        <div class="hint" id="hint"><b data-i18n="drop.title">Сфотографуй страву</b><span data-i18n="drop.text"></span></div>
+        <img id="preview" data-i18n-alt="photo.alt" alt="" hidden>
       </div>
       <div class="row">
-        <button class="btn pick" id="openCam" type="button">Камера</button>
-        <label class="btn ghost pick" for="photo">Галерея</label>
+        <button class="btn pick" id="openCam" type="button" data-i18n="camera">Камера</button>
+        <label class="btn ghost pick" for="photo" data-i18n="gallery">Галерея</label>
         <input type="file" id="photo" accept="image/*" class="sr">
         <input type="file" id="camFallback" accept="image/*" capture="environment" class="sr">
       </div>
     </section>
 
     <section class="panel" aria-labelledby="s2">
-      <div class="step"><span class="num">2</span><h2 id="s2">Загальна вага порції</h2></div>
+      <div class="step"><span class="num">2</span><h2 id="s2" data-i18n="s2">Загальна вага порції</h2></div>
       <div class="row">
-        <div class="weight"><input id="weight" type="number" inputmode="numeric" min="1" max="5000" placeholder="350" aria-label="Вага в грамах"><span>г</span></div>
+        <div class="weight"><input id="weight" type="number" inputmode="numeric" min="1" max="5000" placeholder="350" data-i18n-aria="weight.aria"><span data-i18n="g">г</span></div>
         <div class="chips" id="presets">
           <button class="chip" data-w="250" type="button">250</button>
           <button class="chip" data-w="350" type="button">350</button>
           <button class="chip" data-w="500" type="button">500</button>
         </div>
       </div>
-      <p class="note">Вага їжі без тарілки. Якщо зважуєш з тарілкою, відніми її вагу.</p>
-      <textarea id="hintText" rows="2" placeholder="Підказка (необов'язково): «соус песто», «смажено на оливковій олії», «веганське»"></textarea>
+      <p class="note" data-i18n="weight.note"></p>
+      <textarea id="hintText" rows="2" data-i18n-ph="hint.ph"></textarea>
     </section>
 
     <div class="row">
-      <button class="btn" id="go" type="button" disabled>Розібрати страву</button>
-      <button class="btn ghost" id="stop" type="button" hidden>Стоп</button>
+      <button class="btn" id="go" type="button" disabled data-i18n="go">Розібрати страву</button>
+      <button class="btn ghost" id="stop" type="button" hidden data-i18n="stop">Стоп</button>
     </div>
     <div class="status" id="status" role="status" aria-live="polite"></div>
 
     <article class="ticket" id="result" aria-live="polite"></article>
+
+    <div class="nudge" id="nudge" hidden>
+      <p data-i18n="nudge.text"></p>
+      <div class="row">
+        <button class="btn" id="nudgeGo" type="button" data-i18n="nudge.btn">Підтримати</button>
+        <button class="btn ghost" id="nudgeLater" type="button" data-i18n="nudge.later">Пізніше</button>
+      </div>
+    </div>
   </div>
 
   <div id="viewHist" class="view" hidden>
@@ -115,27 +128,48 @@
 
   <div id="viewDetail" class="view" hidden>
     <div class="row">
-      <button class="btn ghost" id="back" type="button">← Історія</button>
+      <button class="btn ghost" id="back" type="button" data-i18n="back">← Історія</button>
       <span class="spacer"></span>
-      <button class="btn ghost danger" id="del" type="button">Видалити</button>
+      <button class="btn ghost danger" id="del" type="button" data-i18n="del">Видалити</button>
     </div>
-    <img id="detailImg" class="detail-img" alt="Фото страви">
+    <img id="detailImg" class="detail-img" data-i18n-alt="photo.alt" alt="">
     <div class="meta" id="detailWhen"></div>
     <article class="ticket" id="detailTicket"></article>
+  </div>
+
+  <div id="viewSettings" class="view" hidden>
+    <div class="row"><button class="btn ghost" id="settingsBack" type="button" data-i18n="set.back">← Назад</button></div>
+    <h2 class="page-title" data-i18n="set.title">Налаштування</h2>
+
+    <section class="panel">
+      <fieldset class="langs" id="langs">
+        <legend class="lbl" data-i18n="set.lang">Мова</legend>
+        <!-- options are rendered from LANGS -->
+      </fieldset>
+    </section>
+
+    <section class="panel" id="support">
+      <span class="lbl" data-i18n="set.support">Підтримати розробку</span>
+      <p class="support-text" data-i18n="set.supportText"></p>
+      <div class="donate" id="donateLinks"></div>
+    </section>
+
+    <p class="note" data-i18n="set.about"></p>
   </div>
 </div>
 
 <div class="cam" id="cam" hidden>
   <video id="camVideo" playsinline muted autoplay></video>
   <div class="frame" aria-hidden="true"></div>
-  <div class="camtip">Тарілка в колі, знімай зверху</div>
+  <div class="camtip" data-i18n="cam.tip"></div>
   <div class="bar">
-    <button type="button" id="camClose">Скасувати</button>
-    <button type="button" class="shutter" id="camShot" aria-label="Зробити фото"></button>
-    <button type="button" id="camGallery">Галерея</button>
+    <button type="button" id="camClose" data-i18n="cancel">Скасувати</button>
+    <button type="button" class="shutter" id="camShot" data-i18n-aria="cam.shot"></button>
+    <button type="button" id="camGallery" data-i18n="gallery">Галерея</button>
   </div>
 </div>
 
+<script src="/i18n.js"></script>
 <script src="/app.js"></script>
 </body>
 </html>

@@ -9,7 +9,8 @@ const MAX_IMAGE_B64 = 4_000_000;          // ~3 MB image; the client sends ~0.3�
 const RATE = { windowMs: 60_000, max: 12 }; // per IP per instance — a light brake, not a wall
 const hits = new Map();
 
-const PROMPT = (W, hint) => `Ти — нутриціолог-аналітик. На фото страва. Загальна вага порції без тарілки: ${W} г.
+const PROMPTS = {
+  uk: (W, hint) => `Ти — нутриціолог-аналітик. На фото страва. Загальна вага порції без тарілки: ${W} г.
 ${hint ? "Підказка від користувача: " + hint : ""}
 Завдання:
 1. Визнач страву і спосіб приготування.
@@ -18,11 +19,27 @@ ${hint ? "Підказка від користувача: " + hint : ""}
 4. Для кожного — коротко, на що він найкраще впливає в організмі (1 речення, конкретні нутрієнти).
 5. 2–3 цікаві факти про страву або її інгредієнти.
 Не рахуй грами і калорії порції — це зробить застосунок.
-Відповідай українською. Поверни ТІЛЬКИ JSON такої форми, без тексту до чи після:
+Усі текстові значення пиши українською. Поверни ТІЛЬКИ JSON такої форми, без тексту до чи після:
 {"dish":"назва","cooking_method":"смажене|варене|запечене|тушковане|гриль|сире|на пару|змішане","cooking_note":"коротко, як готували і як це впливає на калорійність","confidence":0.0-1.0,
 "ingredients":[{"name":"","percent":0,"hidden":false,"confidence":0.0-1.0,"per100":{"kcal":0,"protein":0,"fat":0,"carbs":0,"fiber":0},"benefit":""}],
 "facts":[""],"caveats":"що найбільше впливає на похибку оцінки"}
-Якщо на фото не їжа — поверни {"error":"коротко, що на фото"}.`;
+Якщо на фото не їжа — поверни {"error":"коротко, що на фото"}.`,
+
+  en: (W, hint) => `You are a nutrition analyst. The photo shows a meal. Total portion weight without the plate: ${W} g.
+${hint ? "Hint from the user: " + hint : ""}
+Tasks:
+1. Identify the dish and how it was cooked.
+2. Identify every visible ingredient and the likely hidden ones (oil, butter, sauce, sugar in dressing); estimate each one's share as a percentage OF THE TOTAL WEIGHT (sum = 100).
+3. For each ingredient give nutrients per 100 g AS COOKED (e.g. boiled buckwheat, not dry), taking the cooking method into account.
+4. For each, say briefly what it is best for in the body (1 sentence, specific nutrients).
+5. 2–3 interesting facts about the dish or its ingredients.
+Do not compute grams or calories for the portion — the app does that.
+Write every text value in English. Return ONLY JSON of this shape, with no text before or after:
+{"dish":"name","cooking_method":"fried|boiled|baked|stewed|grilled|raw|steamed|mixed","cooking_note":"briefly, how it was cooked and how that affects calories","confidence":0.0-1.0,
+"ingredients":[{"name":"","percent":0,"hidden":false,"confidence":0.0-1.0,"per100":{"kcal":0,"protein":0,"fat":0,"carbs":0,"fiber":0},"benefit":""}],
+"facts":[""],"caveats":"what affects the accuracy of this estimate most"}
+If the photo shows no food, return {"error":"briefly, what the photo shows"}.`,
+};
 
 function codeOk(req) {
   const need = process.env.ACCESS_CODE;
@@ -54,20 +71,21 @@ export default async function handler(req, res) {
   if (req.method === "GET") {
     return res.status(200).json({ ok: true, codeRequired: !!process.env.ACCESS_CODE, codeOk: codeOk(req) });
   }
-  if (req.method !== "POST") return res.status(405).json({ error: "Метод не підтримується" });
-  if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ error: "Сервер не налаштований: немає ANTHROPIC_API_KEY" });
-  if (!codeOk(req)) return res.status(401).json({ error: "Потрібен код доступу" });
-  if (rateLimited(req)) return res.status(429).json({ error: "Забагато запитів. Спробуй за хвилину." });
+  if (req.method !== "POST") return res.status(405).json({ code: "generic", error: "Method not allowed" });
+  if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ code: "server_config", error: "ANTHROPIC_API_KEY is not set" });
+  if (!codeOk(req)) return res.status(401).json({ code: "code", error: "Access code required" });
+  if (rateLimited(req)) return res.status(429).json({ code: "rate", error: "Too many requests" });
 
   const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {});
   const W = Math.round(Number(body.weight));
   const image = typeof body.image === "string" ? body.image : "";
   const mediaType = ["image/jpeg", "image/png", "image/webp"].includes(body.mediaType) ? body.mediaType : "image/jpeg";
   const hint = String(body.hint || "").slice(0, 300);
+  const lang = PROMPTS[body.lang] ? body.lang : "en";
 
-  if (!(W > 0 && W <= 5000)) return res.status(400).json({ error: "Вкажи вагу від 1 до 5000 г" });
-  if (!image) return res.status(400).json({ error: "Немає фото" });
-  if (image.length > MAX_IMAGE_B64) return res.status(413).json({ error: "Фото завелике" });
+  if (!(W > 0 && W <= 5000)) return res.status(400).json({ code: "weight", error: "Weight must be 1–5000 g" });
+  if (!image) return res.status(400).json({ code: "no_image", error: "No image" });
+  if (image.length > MAX_IMAGE_B64) return res.status(413).json({ code: "too_big", error: "Image too large" });
 
   let r;
   try {
@@ -85,28 +103,28 @@ export default async function handler(req, res) {
           role: "user",
           content: [
             { type: "image", source: { type: "base64", media_type: mediaType, data: image } },
-            { type: "text", text: PROMPT(W, hint) },
+            { type: "text", text: PROMPTS[lang](W, hint) },
           ],
         }],
       }),
     });
   } catch {
-    return res.status(502).json({ error: "Не вдалося зв'язатися з Claude. Спробуй ще раз." });
+    return res.status(502).json({ code: "network", error: "Could not reach Claude" });
   }
 
   const data = await r.json().catch(() => ({}));
   if (!r.ok) {
     console.error("Claude API error", r.status, JSON.stringify(data).slice(0, 500));
-    if (r.status === 429) return res.status(429).json({ error: "Ліміт запитів до Claude. Спробуй за хвилину." });
-    if (r.status === 529 || r.status >= 500) return res.status(503).json({ error: "Claude перевантажений. Спробуй ще раз." });
-    if (r.status === 401) return res.status(500).json({ error: "Невірний ключ API на сервері" });
-    if (r.status === 400 && /credit|balance/i.test(data?.error?.message || "")) return res.status(402).json({ error: "На рахунку Claude API закінчились кошти" });
-    return res.status(502).json({ error: "Claude не зміг обробити фото. Спробуй інше." });
+    if (r.status === 429) return res.status(429).json({ code: "rate", error: "Claude rate limit" });
+    if (r.status === 529 || r.status >= 500) return res.status(503).json({ code: "overloaded", error: "Claude overloaded" });
+    if (r.status === 401) return res.status(500).json({ code: "server_config", error: "Invalid API key" });
+    if (r.status === 400 && /credit|balance/i.test(data?.error?.message || "")) return res.status(402).json({ code: "no_credit", error: "Out of API credit" });
+    return res.status(502).json({ code: "bad_image", error: "Claude could not process the image" });
   }
 
   const text = (data.content || []).filter(c => c.type === "text").map(c => c.text).join("\n");
   const json = extractJson(text);
-  if (!json) return res.status(502).json({ error: "Відповідь не вдалося розібрати. Спробуй ще раз." });
+  if (!json) return res.status(502).json({ code: "parse", error: "Could not parse the response" });
 
   return res.status(200).json(json);
 }

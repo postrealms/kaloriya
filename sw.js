@@ -1,6 +1,6 @@
 // Калорія service worker: app shell works offline; analysis always goes to the network.
-const VERSION = "kaloriya-v0.4.0";
-const SHELL = ["/", "/index.html", "/app.css", "/app.js", "/manifest.webmanifest",
+const VERSION = "kaloriya-v0.5.0";
+const SHELL = ["/", "/index.html", "/app.css", "/i18n.js", "/app.js", "/manifest.webmanifest",
   "/icons/icon-192.png", "/icons/icon-512.png", "/icons/apple-touch-icon.png"];
 
 self.addEventListener("install", e => {
