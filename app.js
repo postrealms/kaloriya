@@ -4,8 +4,8 @@
 
 /* Donation links — empty string hides the button */
 const DONATE = {
-  mono: "",   // https://send.monobank.ua/jar/...
-  kofi: "",   // https://ko-fi.com/...
+  mono: "https://send.monobank.ua/jar/2NiaJEbwCC",
+  kofi: "https://ko-fi.com/postrealms_creative",
 };
 
 const $ = s => document.querySelector(s);
