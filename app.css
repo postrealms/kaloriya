@@ -198,3 +198,27 @@ button,input,textarea{font-family:inherit}
 .acc-who{margin:0;font-weight:600;overflow-wrap:anywhere}
 .code-input{letter-spacing:.3em;text-align:center;font-size:24px!important}
 #accEmailForm,#accCodeForm{display:contents}
+
+/* editing a saved analysis */
+.detail-bar{justify-content:space-between;flex-wrap:nowrap}
+.detail-bar .meta{min-width:0}
+.edit{gap:16px}
+.edit input[type=text]{font:500 16px var(--body);border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg);padding:10px 12px;width:100%;min-width:0}
+.edit input[type=text]:focus{outline:2px solid var(--accent);border-color:transparent}
+.ed-sum{display:grid;grid-template-columns:repeat(4,1fr);background:var(--soft);border-radius:10px;padding:10px 4px;text-align:center}
+.ed-sum b{display:block;font:600 18px var(--mono);font-variant-numeric:tabular-nums}
+.ed-sum .kc b{color:var(--accent)}
+.ed-sum small{font:500 10px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.ed-items{display:flex;flex-direction:column;gap:12px}
+.ed-item{display:flex;flex-direction:column;gap:8px;padding-bottom:12px;border-bottom:1px dashed var(--line)}
+.ed-top{display:grid;grid-template-columns:10px 1fr auto;gap:10px;align-items:center}
+.ed-top i{width:10px;height:10px;border-radius:2px}
+.ed-del{border:1px solid var(--line);background:none;color:var(--muted);width:38px;height:38px;border-radius:10px;font-size:20px;cursor:pointer}
+.ed-del:hover{color:var(--warn);border-color:var(--warn)}
+.ed-g{display:grid;grid-template-columns:1fr 120px;gap:12px;align-items:center}
+.ed-g input[type=range]{width:100%;accent-color:var(--accent);min-width:0}
+.weight.sm input{font-size:17px;padding:8px 10px}
+.ed-meta{display:flex;justify-content:space-between;font:12px var(--mono);color:var(--muted)}
+.ed-add{display:grid;grid-template-columns:1fr auto;gap:8px}
+.inline-link{color:var(--accent);font-weight:600}
+.edit .weight{flex:none}

@@ -122,7 +122,7 @@ function render(d, W, isExample, el){
   <div class="top">
     ${isExample?`<span class="example">${esc(t("r.example"))}</span>`:''}
     <h2 class="dish">${esc(d.dish)}</h2>
-    <div class="meta">${esc(d.cooking_method)} · ${n0(W)} ${t("g")} · <span class="conf">${t("r.conf",{n:Math.round((+d.confidence||0)*100)})}</span></div>
+    <div class="meta">${esc(d.cooking_method)} · ${n0(W)} ${t("g")} · <span class="conf">${d.edited ? esc(t("r.edited")) : t("r.conf",{n:Math.round((+d.confidence||0)*100)})}</span></div>
     ${d.cooking_note?`<div class="meta">${esc(d.cooking_note)}</div>`:''}
   </div>
   <div class="totals">
@@ -271,7 +271,7 @@ async function analyze(image, W, hint, signal){
 $("#go").addEventListener("click", async ()=>{
   const W = weight(); if(!file || !W || ctl) return;
   if(authRequired && !session){ openAccount(); return; }
-  ctl = new AbortController(); refresh(); $("#stop").hidden = false; $("#nudge").hidden = true;
+  ctl = new AbortController(); refresh(); $("#stop").hidden = false; $("#nudge").hidden = true; $("#editLast").hidden = true;
   setStatus(t("st.working"), false, true);
   const hint = $("#hintText").value.trim();
   try{
@@ -285,6 +285,7 @@ $("#go").addEventListener("click", async ()=>{
       $("#result").scrollIntoView({behavior:"smooth", block:"start"});
       const ok = await saveAnalysis(d, W, hint, file);
       setStatus(ok ? t("st.saved") : t("st.saveFail"), !ok);
+      $("#editLast").hidden = !ok;
       maybeNudge();
     }
   }catch(e){
@@ -307,7 +308,7 @@ $("#go").addEventListener("click", async ()=>{
 /* ---------- history ---------- */
 let hist = [], current = null, delTimer = null, goal = 0, goalEditing = false;
 
-let remote = [], pendingCount = 0;
+let remote = [], pendingCount = 0, lastSavedId = null;
 async function loadHistory(fetchRemote){
   let local = [];
   try{ local = await idb.all(); }catch{}
@@ -328,6 +329,7 @@ async function saveAnalysis(d, W, hint, f){
     dish:String(d.dish||t("dish.default")), weight:W, kcal:Math.round(c.kcal), protein:r1(c.protein), fat:r1(c.fat), carbs:r1(c.carbs),
     hint, lang, analysis:d, thumb};
   try{ await idb.put(rec); }catch{ return false; }
+  lastSavedId = rec.id;
   await loadHistory(false);
   if(session) syncPending().catch(()=>{});
   return true;
@@ -429,6 +431,7 @@ function openDetail(r){
   $("#detailImg").hidden = !r.thumb; if(r.thumb) $("#detailImg").src = r.thumb;
   $("#detailWhen").textContent = `${dayLabel(r.createdAt)}, ${timeOf(r.createdAt)}${r.hint?" · "+t("h.hint")+": "+r.hint:""}`;
   render(r.analysis, r.weight, false, $("#detailTicket"));
+  closeEditor(); $("#detailStatus").textContent = "";
 }
 
 $("#tabNew").addEventListener("click", ()=>show("new"));
@@ -494,6 +497,137 @@ function maybeNudge(){
 function snoozeNudge(){ ls.set("kaloriya.nudgeAt", String(Date.now())); $("#nudge").hidden = true; }
 $("#nudgeLater").addEventListener("click", snoozeNudge);
 $("#nudgeGo").addEventListener("click", ()=>{ snoozeNudge(); returnView = "new"; show("settings"); $("#support").scrollIntoView({block:"start"}); });
+
+/* ---------- editing a saved analysis ---------- */
+let draft = null;
+function closeEditor(){
+  draft = null;
+  $("#editPanel").hidden = true; $("#editPanel").innerHTML = "";
+  $("#detailTicket").hidden = false; $("#editBtn").hidden = false;
+}
+function openEditor(r){
+  const d = r.analysis, c = calc(d, r.weight);
+  draft = { dish: d.dish || "", items: c.rows.map(x=>({name:x.name, g:Math.round(x.g), per100:{...(x.per100||{})},
+    benefit:x.benefit||"", hidden:!!x.hidden, confidence:x.confidence})) };
+  $("#detailTicket").hidden = true; $("#editBtn").hidden = true; $("#editPanel").hidden = false;
+  renderEditor();
+}
+const draftTotal = () => draft.items.reduce((a,x)=>a+(+x.g||0), 0);
+function draftAnalysis(){
+  const W = draftTotal() || 1;
+  return {...current.analysis, dish: draft.dish.trim() || current.analysis.dish, edited: true,
+    ingredients: draft.items.filter(x=>x.g>0).map(({g, ...x})=>({...x, percent: Math.round(g/W*1000)/10}))};
+}
+function renderEditor(){
+  const p = $("#editPanel");
+  p.innerHTML = `
+    <h2 class="page-title">${esc(t("ed.title"))}</h2>
+    <label class="lbl" for="edDish">${esc(t("ed.dish"))}</label>
+    <input id="edDish" type="text" value="${esc(draft.dish)}" maxlength="120">
+    <div class="ed-sum" id="edSum"></div>
+    <label class="lbl" for="edTotal">${esc(t("ed.total"))}</label>
+    <div class="weight"><input id="edTotal" type="number" inputmode="numeric" min="1" max="5000"><span>${t("g")}</span></div>
+    <span class="lbl">${esc(t("ed.items"))}</span>
+    <div class="ed-items">${draft.items.map((x,k)=>{
+      const max = Math.max(100, Math.ceil(Math.max(x.g*3, draftTotal())/10)*10);
+      return `<div class="ed-item" data-k="${k}">
+        <div class="ed-top"><i style="background:${COLORS[k%COLORS.length]}"></i>
+          <input type="text" class="ed-name" id="edName${k}" value="${esc(x.name)}" maxlength="80" aria-label="${esc(t("r.th")[0])}">
+          <button type="button" class="ed-del" aria-label="${esc(t("ed.del"))}">×</button></div>
+        <div class="ed-g"><input type="range" class="ed-range" id="edRange${k}" min="0" max="${max}" step="1" value="${Math.round(x.g)}" aria-label="${esc(x.name)}, ${t("g")}">
+          <div class="weight sm"><input type="number" class="ed-num" id="edNum${k}" inputmode="numeric" min="0" max="5000" value="${Math.round(x.g)}"><span>${t("g")}</span></div></div>
+        <div class="ed-meta"><span>${t("ed.per100",{k:n0(+x.per100?.kcal||0)})}</span><span class="ed-k"></span></div>
+      </div>`; }).join("")}</div>
+    <form class="ed-add" id="edAddForm"><input type="text" id="edAddName" maxlength="80" placeholder="${esc(t("ed.addPh"))}"><button class="btn ghost" type="submit">${esc(t("ed.add"))}</button></form>
+    <div class="status" id="edStatus" role="status" aria-live="polite"></div>
+    <div class="row"><button class="btn" id="edSave" type="button">${esc(t("ed.save"))}</button><button class="btn ghost" id="edCancel" type="button">${esc(t("cancel"))}</button></div>`;
+  updateEditorNumbers();
+}
+function updateEditorNumbers(){
+  const W = draftTotal(), d = draftAnalysis(), c = calc(d, W || 1);
+  $("#edSum").innerHTML = `<div class="kc"><b>${n0(c.kcal)}</b><small>${t("kcal")}</small></div><div><b>${n1(c.protein)}</b><small>${t("r.protein")}</small></div><div><b>${n1(c.fat)}</b><small>${t("r.fat")}</small></div><div><b>${n1(c.carbs)}</b><small>${t("r.carbs")}</small></div>`;
+  if(document.activeElement !== $("#edTotal")) $("#edTotal").value = Math.round(W);
+  $$("#editPanel .ed-item").forEach(el=>{
+    const x = draft.items[+el.dataset.k];
+    el.querySelector(".ed-k").textContent = n0((+x.per100?.kcal||0)*x.g/100) + " " + t("kcal");
+  });
+  $("#edSave").disabled = !(W > 0 && draft.items.some(x=>x.g>0));
+}
+$("#editPanel").addEventListener("input", e=>{
+  if(!draft) return;
+  const el = e.target, item = el.closest(".ed-item"), k = item ? +item.dataset.k : -1;
+  if(el.id === "edDish") draft.dish = el.value;
+  else if(el.classList.contains("ed-name")) draft.items[k].name = el.value;
+  else if(el.classList.contains("ed-range") || el.classList.contains("ed-num")){
+    const g = Math.max(0, Math.min(5000, Math.round(+el.value || 0)));
+    draft.items[k].g = g;
+    const other = item.querySelector(el.classList.contains("ed-range") ? ".ed-num" : ".ed-range");
+    if(+other.max && g > +other.max) other.max = Math.ceil(g*1.5/10)*10;
+    other.value = g;
+  }
+  else if(el.id === "edTotal"){
+    const W = draftTotal(), target = Math.max(0, Math.min(5000, +el.value || 0));
+    if(W > 0 && target > 0){
+      draft.items.forEach(x=>{ x.g = Math.round(x.g*target/W); });
+      $$("#editPanel .ed-item").forEach(it=>{ const x = draft.items[+it.dataset.k];
+        const r = it.querySelector(".ed-range"); if(x.g > +r.max) r.max = Math.ceil(x.g*1.5/10)*10; r.value = x.g; it.querySelector(".ed-num").value = x.g; });
+    }
+  }
+  updateEditorNumbers();
+});
+$("#editPanel").addEventListener("click", async e=>{
+  if(!draft) return;
+  if(e.target.closest(".ed-del")){ draft.items.splice(+e.target.closest(".ed-item").dataset.k, 1); renderEditor(); return; }
+  if(e.target.id === "edCancel"){ closeEditor(); return; }
+  if(e.target.id === "edSave") saveEdit();
+});
+$("#editPanel").addEventListener("submit", async e=>{
+  e.preventDefault();
+  if(e.target.id !== "edAddForm" || !draft) return;
+  const name = $("#edAddName").value.trim(); if(!name) return;
+  const st = $("#edStatus"); st.className = "status"; st.innerHTML = '<span class="dot"></span>' + esc(t("ed.adding",{x:name}));
+  e.target.querySelector("button").disabled = true;
+  try{
+    const res = await fetch("/api/nutrients", {method:"POST", headers: await apiHeaders({"content-type":"application/json"}),
+      body: JSON.stringify({name, lang, context: [current.analysis.dish, current.analysis.cooking_method].filter(Boolean).join(", ")})});
+    const j = await res.json().catch(()=>({}));
+    if(!res.ok){ st.className = "status err"; st.textContent = j.code === "not_food" ? t("ed.notFood") : (I18N[lang]["err."+j.code] ? t("err."+j.code) : t("err.generic")); return; }
+    draft.items.push({name: j.name || name, g: 30, per100: j.per100, benefit: j.benefit || "", hidden:false, confidence:.6});
+    renderEditor();
+    const k = draft.items.length - 1; $("#edNum"+k)?.focus(); $("#edNum"+k)?.select();
+  }catch{ st.className = "status err"; st.textContent = navigator.onLine ? t("err.network") : t("st.offline"); }
+  finally{ const b = $("#edAddForm button"); if(b) b.disabled = false; }
+});
+
+async function saveEdit(){
+  const W = Math.round(draftTotal());
+  if(!(W > 0)){ $("#edStatus").textContent = t("ed.empty"); return; }
+  const d = draftAnalysis(), c = calc(d, W), r1 = x => Math.round(x*10)/10;
+  const fields = {dish: d.dish, weight: W, kcal: Math.round(c.kcal), protein: r1(c.protein), fat: r1(c.fat), carbs: r1(c.carbs), analysis: d};
+  $("#edSave").disabled = true;
+  try{
+    if(current._local){ const {_local, ...rec} = current; await idb.put({...rec, ...fields}); }
+    else {
+      await sb("/rest/v1/meals?id=eq." + encodeURIComponent(current.id), {method:"PATCH", headers:{Prefer:"return=minimal"}, json: fields});
+      remote = remote.map(x => x.id === current.id ? {...x, ...fields} : x);
+      idb.set("remoteCache", remote).catch(()=>{});
+    }
+    const id = current.id;
+    await loadHistory(false);
+    const updated = hist.find(x=>x.id===id);
+    if(updated){ openDetail(updated); }
+    if(lastResult && id === lastSavedId){ lastResult = {d, W}; render(d, W, false); }
+    $("#detailStatus").className = "status"; $("#detailStatus").textContent = t("ed.saved");
+  }catch(e){
+    $("#edStatus").className = "status err"; $("#edStatus").textContent = navigator.onLine ? t("err.network") : t("st.offline");
+    $("#edSave").disabled = false;
+  }
+}
+$("#editBtn").addEventListener("click", ()=>{ if(current) openEditor(current); });
+$("#editLast").addEventListener("click", ()=>{
+  const r = hist.find(x=>x.id===lastSavedId); if(!r) return;
+  openDetail(r); show("detail"); openEditor(r);
+});
 
 /* ---------- account: Supabase Auth + REST, no SDK ---------- */
 let session = null;

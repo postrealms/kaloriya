@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Калорія — політика конфіденційності</title>
+<meta name="theme-color" content="#3f6b2a" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141812" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="/icons/icon-192.png" type="image/png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="/app.css">
+<style>
+  .doc{max-width:680px;margin:0 auto;display:flex;flex-direction:column;gap:14px;line-height:1.6}
+  .doc h1{font:700 24px/1.2 var(--display);margin:8px 0 0;text-wrap:balance}
+  .doc h2{font:500 16px/1.3 var(--display);margin:18px 0 0}
+  .doc p,.doc li{max-width:65ch;font-size:15px}
+  .doc p{margin:0}
+  .doc ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+  .doc a{color:var(--accent);font-weight:600}
+  .doc .upd{color:var(--muted);font:12px var(--mono);letter-spacing:.04em}
+  .doc table{border-collapse:collapse;width:100%;font-size:14px}
+  .doc td,.doc th{border-bottom:1px solid var(--line);padding:8px 6px;text-align:left;vertical-align:top}
+  .doc th{font:600 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  .langbar{display:flex;gap:6px;justify-content:flex-end}
+  .langbar button{font:600 13px var(--mono);border:1px solid var(--line);background:transparent;color:var(--fg);border-radius:20px;padding:5px 12px;cursor:pointer}
+  .langbar button[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+  .topbar{display:flex;justify-content:space-between;align-items:center;gap:10px}
+</style>
+</head>
+<body>
+<div class="doc">
+  <div class="topbar">
+    <a href="/" id="backLink">← Калорія</a>
+    <div class="langbar"><button type="button" data-l="uk">UA</button><button type="button" data-l="en">EN</button></div>
+  </div>
+
+  <!-- ========== УКРАЇНСЬКА ========== -->
+  <article lang="uk" data-lang="uk">
+    <h1>Політика конфіденційності «Калорії»</h1>
+    <p class="upd">Редакція від 28 жовтня 2026 року</p>
+
+    <p>«Калорія» — застосунок, який оцінює калорійність і склад страви за фото. Тут коротко і без юридичних хитрощів описано, які дані ми збираємо, навіщо, де вони зберігаються і як їх видалити.</p>
+
+    <h2>Хто відповідає за дані</h2>
+    <p>Застосунок розробляє і підтримує незалежний розробник (далі «ми»). З будь-яких питань щодо даних пиши на <a href="mailto:app.support.001@gmail.com">app.support.001@gmail.com</a>.</p>
+
+    <h2>Які дані ми збираємо</h2>
+    <ul>
+      <li><b>Email.</b> Потрібен лише для входу: на нього надходить одноразовий код. Пароль ми не зберігаємо, бо його немає.</li>
+      <li><b>Фото страви.</b> Фото, яке ти робиш для аналізу, передається на сервер і в сервіс штучного інтелекту для розпізнавання. Повне фото ми <b>не зберігаємо</b>. В історії лишається тільки маленька мініатюра (приблизно 500 пікселів по довшій стороні).</li>
+      <li><b>Результати аналізу.</b> Назва страви, інгредієнти, вага, калорії, БЖВ, твоя підказка до фото і твої правки.</li>
+      <li><b>Налаштування.</b> Денна ціль калорій і мова інтерфейсу.</li>
+      <li><b>Лічильник аналізів.</b> Скільки аналізів ти зробив за день, щоб дотримуватися денного ліміту.</li>
+      <li><b>Технічні дані.</b> IP-адреса і час запиту в журналах хостингу. IP також короткочасно використовується в пам'яті сервера, щоб обмежувати надто часті запити.</li>
+    </ul>
+    <p>Ми не збираємо геолокацію, контакти, рекламні ідентифікатори і не використовуємо рекламні чи аналітичні трекери.</p>
+
+    <h2>Навіщо</h2>
+    <ul>
+      <li>Щоб розпізнати страву і порахувати калорії.</li>
+      <li>Щоб зберігати твою історію й ціль та синхронізувати їх між пристроями.</li>
+      <li>Щоб застосунок працював стабільно і не зловживали його ресурсами (ліміти, захист від спаму).</li>
+    </ul>
+    <p>Ми <b>не продаємо</b> дані, не передаємо їх рекламодавцям і не використовуємо для реклами.</p>
+
+    <h2>Хто ще обробляє дані</h2>
+    <p>Застосунок працює на сторонніх сервісах. Кожен отримує тільки те, що потрібно для його роботи:</p>
+    <div class="tbl"><table>
+      <tr><th>Сервіс</th><th>Для чого</th><th>Які дані</th></tr>
+      <tr><td>Anthropic (Claude API)</td><td>Розпізнавання страви на фото, калорійність доданих інгредієнтів</td><td>Фото, вага, підказка, назва інгредієнта</td></tr>
+      <tr><td>Supabase</td><td>Акаунти і база даних, сховище мініатюр</td><td>Email, історія, мініатюри, ціль, мова, лічильник</td></tr>
+      <tr><td>Vercel</td><td>Хостинг застосунку і серверних функцій</td><td>Технічні журнали запитів</td></tr>
+      <tr><td>Google (Gmail)</td><td>Надсилання листа з кодом входу</td><td>Email, текст листа</td></tr>
+      <tr><td>Google Fonts</td><td>Шрифти інтерфейсу</td><td>IP-адреса під час завантаження шрифтів</td></tr>
+    </table></div>
+    <p>За умовами Anthropic дані, надіслані через Claude API, за замовчуванням не використовуються для навчання моделей. Сервери цих компаній можуть розташовуватися за межами України, зокрема в ЄС і США.</p>
+    <p>Донати через банку Monobank чи Ko-fi відбуваються на їхніх сайтах за їхніми правилами. Ми не отримуємо даних твоєї картки.</p>
+
+    <h2>Що зберігається на телефоні</h2>
+    <p>Застосунок зберігає в пам'яті браузера сесію входу, вибрану мову, денну ціль, ще не синхронізовані записи і копію історії для роботи без інтернету. Ці дані не залишають пристрій, поки не синхронізуються з акаунтом.</p>
+
+    <h2>Як довго зберігаємо</h2>
+    <p>Поки існує акаунт. Окремий запис можна видалити в історії. Кнопка «Видалити акаунт і всі дані» в налаштуваннях одразу видаляє акаунт, історію, мініатюри, ціль і лічильник. Технічні журнали хостингу видаляються автоматично через обмежений час. Резервні копії бази, якщо вони є, перезаписуються за графіком провайдера.</p>
+
+    <h2>Твої права</h2>
+    <ul>
+      <li>Подивитися і виправити свої дані: історія і редагування в застосунку.</li>
+      <li>Видалити дані: окремі записи або весь акаунт у налаштуваннях.</li>
+      <li>Отримати копію своїх даних або поставити запитання: напиши на <a href="mailto:app.support.001@gmail.com">app.support.001@gmail.com</a>, відповімо протягом 30 днів.</li>
+    </ul>
+
+    <h2>Діти</h2>
+    <p>Застосунок не призначений для осіб, молодших за 16 років.</p>
+
+    <h2>Здоров'я</h2>
+    <p>Оцінки калорійності орієнтовні і не є медичною порадою. Якщо ти стежиш за харчуванням через стан здоров'я, порадься з лікарем або дієтологом.</p>
+
+    <h2>Зміни</h2>
+    <p>Якщо ми змінимо цю політику, нова редакція з'явиться на цій сторінці з новою датою. Про суттєві зміни повідомимо в застосунку.</p>
+  </article>
+
+  <!-- ========== ENGLISH ========== -->
+  <article lang="en" data-lang="en" hidden>
+    <h1>Kaloriya privacy policy</h1>
+    <p class="upd">Last updated 28 October 2026</p>
+
+    <p>Kaloriya is an app that estimates the calories and composition of a meal from a photo. This page explains, briefly and plainly, what data we collect, why, where it is stored and how to delete it.</p>
+
+    <h2>Who is responsible</h2>
+    <p>The app is built and run by an independent developer ("we"). For any question about your data, write to <a href="mailto:app.support.001@gmail.com">app.support.001@gmail.com</a>.</p>
+
+    <h2>What we collect</h2>
+    <ul>
+      <li><b>Email.</b> Used only to sign in: a one-time code is sent to it. There is no password to store.</li>
+      <li><b>Meal photos.</b> The photo you take is sent to our server and to an AI service for recognition. We do <b>not store</b> the full photo; only a small thumbnail (about 500 px on the long side) is kept in your history.</li>
+      <li><b>Analysis results.</b> Meal name, ingredients, weight, calories, macros, your photo hint and your edits.</li>
+      <li><b>Settings.</b> Your daily calorie goal and interface language.</li>
+      <li><b>Analysis counter.</b> How many analyses you ran today, to apply the daily limit.</li>
+      <li><b>Technical data.</b> IP address and request time in hosting logs. The IP is also held briefly in server memory to limit excessive requests.</li>
+    </ul>
+    <p>We don't collect location, contacts or advertising IDs, and we don't use advertising or analytics trackers.</p>
+
+    <h2>Why</h2>
+    <ul>
+      <li>To recognise the meal and calculate calories.</li>
+      <li>To store your history and goal and sync them across devices.</li>
+      <li>To keep the app stable and prevent abuse (limits, spam protection).</li>
+    </ul>
+    <p>We <b>do not sell</b> data, share it with advertisers or use it for advertising.</p>
+
+    <h2>Who else processes data</h2>
+    <p>The app runs on third-party services. Each receives only what it needs to do its job:</p>
+    <div class="tbl"><table>
+      <tr><th>Service</th><th>Purpose</th><th>Data</th></tr>
+      <tr><td>Anthropic (Claude API)</td><td>Recognising the meal in the photo, calories for added ingredients</td><td>Photo, weight, hint, ingredient name</td></tr>
+      <tr><td>Supabase</td><td>Accounts, database, thumbnail storage</td><td>Email, history, thumbnails, goal, language, counter</td></tr>
+      <tr><td>Vercel</td><td>Hosting the app and server functions</td><td>Technical request logs</td></tr>
+      <tr><td>Google (Gmail)</td><td>Sending the sign-in code email</td><td>Email address, email text</td></tr>
+      <tr><td>Google Fonts</td><td>Interface fonts</td><td>IP address when fonts load</td></tr>
+    </table></div>
+    <p>Under Anthropic's terms, data sent through the Claude API is not used to train models by default. These companies' servers may be located outside Ukraine, including in the EU and the US.</p>
+    <p>Donations via a Monobank jar or Ko-fi happen on their sites under their rules. We never receive your card details.</p>
+
+    <h2>What is stored on your phone</h2>
+    <p>The app keeps your sign-in session, chosen language, daily goal, not-yet-synced entries and a copy of your history for offline use in browser storage. This data stays on the device until it syncs with your account.</p>
+
+    <h2>How long we keep data</h2>
+    <p>For as long as your account exists. You can delete any entry in your history. "Delete account and all data" in Settings immediately removes your account, history, thumbnails, goal and counter. Hosting logs are deleted automatically after a limited time; database backups, if any, are overwritten on the provider's schedule.</p>
+
+    <h2>Your rights</h2>
+    <ul>
+      <li>See and correct your data: history and editing in the app.</li>
+      <li>Delete your data: single entries or your whole account in Settings.</li>
+      <li>Get a copy of your data or ask a question: write to <a href="mailto:app.support.001@gmail.com">app.support.001@gmail.com</a>; we reply within 30 days.</li>
+    </ul>
+
+    <h2>Children</h2>
+    <p>The app is not intended for people under 16.</p>
+
+    <h2>Health</h2>
+    <p>Calorie estimates are approximate and are not medical advice. If you track your diet for a health condition, talk to a doctor or dietitian.</p>
+
+    <h2>Changes</h2>
+    <p>If we change this policy, the new version will appear on this page with a new date. We'll mention significant changes in the app.</p>
+  </article>
+</div>
+<script>
+(function(){
+  var pref = null; try{ pref = localStorage.getItem("kaloriya.lang"); }catch(e){}
+  var dev = (navigator.languages || [navigator.language || "en"]).some(function(l){ return /^uk/i.test(l); }) ? "uk" : "en";
+  var lang = pref === "uk" || pref === "en" ? pref : dev;
+  function set(l){
+    document.querySelectorAll("article[data-lang]").forEach(function(a){ a.hidden = a.dataset.lang !== l; });
+    document.querySelectorAll(".langbar button").forEach(function(b){ b.setAttribute("aria-pressed", b.dataset.l === l); });
+    document.documentElement.lang = l;
+    document.title = l === "uk" ? "Калорія — політика конфіденційності" : "Kaloriya — privacy policy";
+    document.getElementById("backLink").textContent = l === "uk" ? "← Калорія" : "← Kaloriya";
+  }
+  document.querySelectorAll(".langbar button").forEach(function(b){ b.addEventListener("click", function(){ set(b.dataset.l); }); });
+  set(lang);
+})();
+</script>
+</body>
+</html>

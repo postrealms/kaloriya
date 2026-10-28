@@ -24,7 +24,7 @@
   <header>
     <h1><span data-i18n="brand1">Кало</span><span class="acc" data-i18n="brand2">рія</span></h1>
     <div class="head-r">
-      <span class="tag">beta · v0.6</span>
+      <span class="tag">beta · v0.7</span>
       <button class="icon-btn" id="openSettings" type="button" data-i18n-aria="settings.open" aria-label="Налаштування">
         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.56-1.11 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1.03-1.56V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.56 1.03H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.56 1.03Z"/></svg>
       </button>
@@ -115,6 +115,7 @@
       <button class="btn ghost" id="stop" type="button" hidden data-i18n="stop">Стоп</button>
     </div>
     <div class="note" id="usageLine" hidden></div>
+    <button class="link" id="editLast" type="button" data-i18n="ed.fix" hidden></button>
     <div class="status" id="status" role="status" aria-live="polite"></div>
 
     <article class="ticket" id="result" aria-live="polite"></article>
@@ -140,7 +141,12 @@
       <button class="btn ghost danger" id="del" type="button" data-i18n="del">Видалити</button>
     </div>
     <img id="detailImg" class="detail-img" data-i18n-alt="photo.alt" alt="">
-    <div class="meta" id="detailWhen"></div>
+    <div class="row detail-bar">
+      <div class="meta" id="detailWhen"></div>
+      <button class="btn ghost" id="editBtn" type="button" data-i18n="ed.edit">Редагувати</button>
+    </div>
+    <div class="status" id="detailStatus" role="status" aria-live="polite"></div>
+    <section class="panel edit" id="editPanel" hidden></section>
     <article class="ticket" id="detailTicket"></article>
   </div>
 
@@ -166,7 +172,7 @@
       <div class="donate" id="donateLinks"></div>
     </section>
 
-    <p class="note" data-i18n="set.about"></p>
+    <p class="note"><span data-i18n="set.about"></span> <a href="/privacy.html" class="inline-link" data-i18n="privacy.link">Політика конфіденційності</a></p>
   </div>
 
   <div id="viewAccount" class="view" hidden>
@@ -175,6 +181,7 @@
 
     <section class="panel" id="accOut">
       <p class="support-text" data-i18n="acc.signinText"></p>
+      <p class="note"><span data-i18n="privacy.agree"></span> <a href="/privacy.html" class="inline-link" data-i18n="privacy.link"></a>.</p>
       <form id="accEmailForm" class="gate">
         <div id="accStep1" class="gate">
           <label class="lbl" for="accEmail" data-i18n="acc.email"></label>
