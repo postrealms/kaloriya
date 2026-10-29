@@ -24,7 +24,7 @@
   <header>
     <h1><span data-i18n="brand1">Кало</span><span class="acc" data-i18n="brand2">рія</span></h1>
     <div class="head-r">
-      <span class="tag">beta · v0.7</span>
+      <span class="tag">beta · v0.8</span>
       <button class="icon-btn" id="openSettings" type="button" data-i18n-aria="settings.open" aria-label="Налаштування">
         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.56-1.11 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1.03-1.56V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.56 1.03H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.56 1.03Z"/></svg>
       </button>
@@ -119,6 +119,7 @@
     <div class="status" id="status" role="status" aria-live="polite"></div>
 
     <article class="ticket" id="result" aria-live="polite"></article>
+    <div class="fb" id="fbResult" hidden></div>
 
     <div class="nudge" id="nudge" hidden>
       <p data-i18n="nudge.text"></p>
@@ -148,6 +149,7 @@
     <div class="status" id="detailStatus" role="status" aria-live="polite"></div>
     <section class="panel edit" id="editPanel" hidden></section>
     <article class="ticket" id="detailTicket"></article>
+    <div class="fb" id="fbDetail" hidden></div>
   </div>
 
   <div id="viewSettings" class="view" hidden>
@@ -165,6 +167,8 @@
         <!-- options are rendered from LANGS -->
       </fieldset>
     </section>
+
+    <section class="panel" id="fbSettings" hidden></section>
 
     <section class="panel" id="support">
       <span class="lbl" data-i18n="set.support">Підтримати розробку</span>
@@ -227,5 +231,7 @@
 
 <script src="/i18n.js"></script>
 <script src="/app.js"></script>
+<!-- Feedback module: remove this line (or set FEEDBACK=off in Vercel) to switch it off -->
+<script src="/feedback.js"></script>
 </body>
 </html>

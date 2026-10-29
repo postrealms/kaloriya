@@ -222,3 +222,18 @@ button,input,textarea{font-family:inherit}
 .ed-add{display:grid;grid-template-columns:1fr auto;gap:8px}
 .inline-link{color:var(--accent);font-weight:600}
 .edit .weight{flex:none}
+
+/* feedback module (feedback.js) */
+.fb{display:flex;flex-direction:column;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.fb-q{font-weight:600;font-size:14px}
+.fb-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.fb-btn{display:flex;align-items:center;justify-content:center;gap:8px;font:600 14px var(--body);border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:10px;padding:11px 10px;cursor:pointer}
+.fb-btn:hover{border-color:var(--accent)}
+.fb-btn[aria-pressed="true"]{border-color:var(--accent);background:var(--soft)}
+.fb-btn[data-fb="-1"][aria-pressed="true"]{border-color:var(--warn)}
+.fb-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.fb-why{display:flex;flex-direction:column;gap:8px}
+.fb-done{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;font-size:14px;color:var(--muted)}
+.fb-chip{display:inline-flex;align-items:center;gap:6px;font:600 12px var(--body);padding:4px 10px;border-radius:20px;background:var(--soft);color:var(--fg)}
+.fb-chip.down{color:var(--warn)}
+#fbSettings textarea{width:100%}

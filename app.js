@@ -50,7 +50,7 @@ function applyI18n(){
   $$("[data-i18n-aria]").forEach(el => el.setAttribute("aria-label", t(el.dataset.i18nAria)));
   $$("[data-i18n-alt]").forEach(el => el.alt = t(el.dataset.i18nAlt));
   $("#tabs").setAttribute("aria-label", t("tab.new") + " / " + t("tab.hist"));
-  renderLangs(); renderDonate(); renderInstall(); if(typeof renderAuthState === "function" && $("#accTitle")) renderAuthState();
+  renderLangs(); renderDonate(); renderInstall(); window.Feedback?.relabel(); if(typeof renderAuthState === "function" && $("#accTitle")) renderAuthState();
   if(lastResult) render(lastResult.d, lastResult.W, false); else render(EXAMPLES[lang], 380, true);
   renderHistory(); renderGoal();
   if(view === "detail" && current) openDetail(current);
@@ -244,6 +244,8 @@ async function checkAccess(){
     authRequired = !!j.authRequired;
     if(authRequired && session && j.signedIn === false){ saveSession(null); onAuthChange(); }
     usage = j.usage || null;
+    window.appFeatures = j.features || {};
+    window.Feedback?.setEnabled(!!window.appFeatures.feedback);
   }catch{ /* offline: let the user try later */ }
   renderAuthState();
 }
@@ -271,7 +273,7 @@ async function analyze(image, W, hint, signal){
 $("#go").addEventListener("click", async ()=>{
   const W = weight(); if(!file || !W || ctl) return;
   if(authRequired && !session){ openAccount(); return; }
-  ctl = new AbortController(); refresh(); $("#stop").hidden = false; $("#nudge").hidden = true; $("#editLast").hidden = true;
+  ctl = new AbortController(); refresh(); $("#stop").hidden = false; $("#nudge").hidden = true; $("#editLast").hidden = true; window.Feedback?.clear($("#fbResult"));
   setStatus(t("st.working"), false, true);
   const hint = $("#hintText").value.trim();
   try{
@@ -286,6 +288,7 @@ $("#go").addEventListener("click", async ()=>{
       const ok = await saveAnalysis(d, W, hint, file);
       setStatus(ok ? t("st.saved") : t("st.saveFail"), !ok);
       $("#editLast").hidden = !ok;
+      if(ok) window.Feedback?.mount($("#fbResult"), lastSavedId);
       maybeNudge();
     }
   }catch(e){
@@ -432,6 +435,7 @@ function openDetail(r){
   $("#detailWhen").textContent = `${dayLabel(r.createdAt)}, ${timeOf(r.createdAt)}${r.hint?" · "+t("h.hint")+": "+r.hint:""}`;
   render(r.analysis, r.weight, false, $("#detailTicket"));
   closeEditor(); $("#detailStatus").textContent = "";
+  window.Feedback?.mount($("#fbDetail"), r.id);
 }
 
 $("#tabNew").addEventListener("click", ()=>show("new"));
@@ -836,6 +840,7 @@ function renderAuthState(){
 
 async function onAuthChange(justSignedIn){
   renderAuthState();
+  window.Feedback?.reset();
   if(session){
     if(justSignedIn) await syncPending().catch(()=>{});
     await Promise.all([loadProfile().catch(()=>{}), loadHistory()]);

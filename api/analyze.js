@@ -73,7 +73,9 @@ export default async function handler(req, res) {
 
   // Health / access check used by the app on start; with a token it also reports today's usage
   if (req.method === "GET") {
-    const out = { ok: true, codeRequired: !!process.env.ACCESS_CODE, codeOk: codeOk(req), authRequired: authEnabled };
+    const out = { ok: true, codeRequired: !!process.env.ACCESS_CODE, codeOk: codeOk(req), authRequired: authEnabled,
+      // Feature switches: set FEEDBACK=off in Vercel to hide the accuracy buttons and the message form
+      features: { feedback: String(process.env.FEEDBACK || "on").toLowerCase() !== "off" } };
     if (authEnabled) {
       const user = await getUser(req);
       out.signedIn = !!user;

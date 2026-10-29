@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Калорія — тестування</title>
+<link rel="icon" href="/icons/icon-192.png" type="image/png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="/app.css">
+<style>
+  .wrap{max-width:960px}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+  .tile{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:4px;min-width:0}
+  .tile b{font:600 24px var(--mono);font-variant-numeric:tabular-nums}
+  .tile small{font:500 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  .tile span{font-size:12px;color:var(--muted)}
+  .charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+  .chart{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:8px;min-width:0;position:relative}
+  .chart h3{margin:0;font:600 14px var(--body)}
+  .chart svg{width:100%;height:auto;display:block;overflow:visible}
+  .chart .ax{fill:var(--muted);font:10px var(--mono)}
+  .chart .grid{stroke:var(--line);stroke-width:1}
+  .chart .barm{fill:var(--accent)}
+  .chart .hit{fill:transparent;cursor:default}
+  .chart g.b:hover .barm,.chart g.b:focus .barm{fill:var(--fg)}
+  .tip{position:absolute;pointer-events:none;background:var(--fg);color:var(--bg);font:12px var(--mono);padding:4px 8px;border-radius:6px;white-space:nowrap;transform:translate(-50%,-110%)}
+  .box{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+  .box h3{margin:0;font:600 14px var(--body)}
+  .tbl{overflow-x:auto}
+  .tbl table.wide{min-width:560px}
+  td.rt,th.rt{text-align:right}
+  .list{display:flex;flex-direction:column;gap:10px;margin:0;padding:0;list-style:none}
+  .list li{border-bottom:1px dashed var(--line);padding-bottom:10px;font-size:14px;overflow-wrap:anywhere}
+  .list small{display:block;color:var(--muted);font:12px var(--mono);margin-bottom:4px}
+  .muted{color:var(--muted)}
+  .msg{padding:16px;border-radius:12px;background:var(--soft)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Кало<span class="acc">рія</span></h1>
+    <div class="head-r"><span class="tag" id="gen"></span><button class="btn ghost" id="reload" type="button">Оновити</button></div>
+  </header>
+  <h2 class="page-title">Тестування</h2>
+  <div id="out"><p class="muted">Завантаження…</p></div>
+</div>
+<script>
+"use strict";
+const SB = { url: "https://fwfngptvjnclngxvknza.supabase.co", key: "sb_publishable_sIq7rRUa3wd3s1aEPwiVRw_lbHEAwF6" };
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const pct = (a, b) => b ? Math.round(a / b * 100) + "%" : "—";
+const dt = s => s ? new Date(s).toLocaleString("uk-UA", {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"}) : "—";
+const dd = s => s ? new Date(s + (s.length === 10 ? "T12:00:00" : "")).toLocaleDateString("uk-UA", {day:"numeric", month:"short"}) : "—";
+
+async function token(){
+  let s = null; try{ s = JSON.parse(localStorage.getItem("kaloriya.session") || "null"); }catch{}
+  if(!s) return null;
+  if(Date.now() < s.expires_at - 60000) return s.access_token;
+  const r = await fetch(SB.url + "/auth/v1/token?grant_type=refresh_token", {method:"POST", headers:{apikey:SB.key, "content-type":"application/json"}, body: JSON.stringify({refresh_token: s.refresh_token})});
+  if(!r.ok) return null;
+  const j = await r.json();
+  s = {...s, access_token:j.access_token, refresh_token:j.refresh_token, expires_at: Date.now() + (j.expires_in || 3600) * 1000};
+  try{ localStorage.setItem("kaloriya.session", JSON.stringify(s)); }catch{}
+  return s.access_token;
+}
+
+function bars(title, data, key){
+  const W = 600, H = 180, L = 28, B = 22, T = 8, n = data.length;
+  const max = Math.max(1, ...data.map(d => d[key]));
+  const nice = max <= 5 ? max : Math.ceil(max / 5) * 5;
+  const step = (W - L) / n, bw = Math.max(2, step - 2);
+  const y = v => T + (H - T - B) * (1 - v / nice);
+  let g = `<line class="grid" x1="${L}" x2="${W}" y1="${y(0)}" y2="${y(0)}"/><line class="grid" x1="${L}" x2="${W}" y1="${y(nice)}" y2="${y(nice)}"/>
+    <text class="ax" x="${L - 6}" y="${y(nice) + 3}" text-anchor="end">${nice}</text><text class="ax" x="${L - 6}" y="${y(0) + 3}" text-anchor="end">0</text>`;
+  data.forEach((d, i) => {
+    const x = L + i * step + 1, v = d[key], top = y(v), h = y(0) - top, r = Math.min(4, bw / 2, h);
+    const path = v > 0 ? `M${x},${y(0)}V${top + r}Q${x},${top} ${x + r},${top}H${x + bw - r}Q${x + bw},${top} ${x + bw},${top + r}V${y(0)}Z` : "";
+    g += `<g class="b" tabindex="0" data-tip="${esc(dd(d.day))}: ${v}" data-x="${x + bw / 2}" data-y="${top}">
+      <rect class="hit" x="${L + i * step}" y="${T}" width="${step}" height="${H - T - B + 2}"/>${path ? `<path class="barm" d="${path}"/>` : ""}</g>`;
+    if((n - 1 - i) % 7 === 0) g += `<text class="ax" x="${x + bw / 2}" y="${H - 6}" text-anchor="middle">${esc(dd(d.day))}</text>`;
+  });
+  return `<div class="chart"><h3>${esc(title)}</h3><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(title)}">${g}</svg><div class="tip" hidden></div></div>`;
+}
+
+function tile(label, value, hint){ return `<div class="tile"><small>${esc(label)}</small><b>${esc(value)}</b>${hint ? `<span>${esc(hint)}</span>` : ""}</div>`; }
+
+function render(s){
+  const t = s.totals, r = s.retention;
+  const rate = s.ratings;
+  $("#gen").textContent = "оновлено " + dt(s.generatedAt);
+  $("#out").innerHTML = `
+  <div class="view">
+    <div class="tiles">
+      ${tile("Тестувальників", t.testers)}
+      ${tile("Активні сьогодні", t.activeToday)}
+      ${tile("Активні за 7 днів", t.active7, pct(t.active7, t.testers) + " від усіх")}
+      ${tile("Аналізів сьогодні", t.analysesToday)}
+      ${tile("Аналізів усього", t.analysesTotal)}
+      ${tile("На активний день", t.perActiveDay, "аналізів на людину")}
+      ${tile("Точність", rate ? pct(rate.up, rate.up + rate.down) : "—", rate ? `${rate.up} точно · ${rate.down} неточно` : "відгуки вимкнено")}
+      ${tile("Відредаговано", pct(t.edited, t.meals), `${t.edited} з ${t.meals} розборів`)}
+    </div>
+    <div class="charts">${bars("Активні користувачі по днях", s.daily, "active")}${bars("Аналізи по днях", s.daily, "analyses")}</div>
+    <div class="box"><h3>Утримання (від першого активного дня)</h3>
+      <div class="tbl"><table><thead><tr><th>Період</th><th class="rt">Повернулись</th><th class="rt">З тих, хто міг</th><th class="rt">Частка</th></tr></thead><tbody>
+        <tr><td>Наступного дня</td><td class="rt">${r.d1[0]}</td><td class="rt">${r.d1[1]}</td><td class="rt">${pct(r.d1[0], r.d1[1])}</td></tr>
+        <tr><td>Тиждень 2 (дні 7–13)</td><td class="rt">${r.d7[0]}</td><td class="rt">${r.d7[1]}</td><td class="rt">${pct(r.d7[0], r.d7[1])}</td></tr>
+        <tr><td>Тиждень 3 (дні 14–20)</td><td class="rt">${r.d14[0]}</td><td class="rt">${r.d14[1]}</td><td class="rt">${pct(r.d14[0], r.d14[1])}</td></tr>
+      </tbody></table></div></div>
+    <div class="box"><h3>Неточні розбори</h3>${rate && rate.negative.length ? `<ul class="list">${rate.negative.map(n => `<li><small>${esc(dt(n.at))} · ${esc(n.email)}</small><b>${esc(n.dish || "—")}</b>${n.comment ? `<br>${esc(n.comment)}` : ` <span class="muted">без коментаря</span>`}</li>`).join("")}</ul>` : `<p class="muted">Поки немає.</p>`}</div>
+    <div class="box"><h3>Повідомлення</h3>${s.messages && s.messages.length ? `<ul class="list">${s.messages.map(m => `<li><small>${esc(dt(m.at))} · ${esc(m.email)} · ${esc(m.lang || "")} · ${esc(m.version || "")}</small>${esc(m.message)}</li>`).join("")}</ul>` : `<p class="muted">Поки немає.</p>`}</div>
+    <div class="box"><h3>Тестувальники</h3><div class="tbl"><table class="wide"><thead><tr><th>Email</th><th>Приєднався</th><th>Остання активність</th><th class="rt">Днів</th><th class="rt">Аналізів</th><th class="rt">Точно / неточно</th></tr></thead><tbody>
+      ${s.testersList.map(u => `<tr><td>${esc(u.email)}</td><td>${esc(dd((u.joined || "").slice(0, 10)))}</td><td>${esc(dd(u.lastActive))}</td><td class="rt">${u.activeDays}</td><td class="rt">${u.analyses}</td><td class="rt">${u.up} / ${u.down}</td></tr>`).join("")}
+    </tbody></table></div></div>
+  </div>`;
+  document.querySelectorAll(".chart").forEach(ch => {
+    const tip = ch.querySelector(".tip"), svg = ch.querySelector("svg");
+    const showTip = g => { const k = svg.clientWidth / 600; tip.textContent = g.dataset.tip; tip.style.left = (14 + +g.dataset.x * k) + "px"; tip.style.top = (40 + +g.dataset.y * k) + "px"; tip.hidden = false; };
+    ch.querySelectorAll("g.b").forEach(g => { g.addEventListener("mouseenter", () => showTip(g)); g.addEventListener("focus", () => showTip(g)); g.addEventListener("touchstart", () => showTip(g), {passive:true}); });
+    svg.addEventListener("mouseleave", () => tip.hidden = true);
+  });
+}
+
+async function load(){
+  const tok = await token();
+  if(!tok){ $("#out").innerHTML = `<p class="msg">Спершу увійди в застосунок на цьому пристрої під email адміністратора, потім відкрий цю сторінку знову. <a class="inline-link" href="/">Відкрити застосунок</a></p>`; return; }
+  const r = await fetch("/api/stats", {headers:{Authorization: "Bearer " + tok}});
+  const j = await r.json().catch(() => ({}));
+  if(!r.ok){ $("#out").innerHTML = `<p class="msg">${esc(j.error || "Помилка " + r.status)}</p>`; return; }
+  render(j);
+}
+$("#reload").addEventListener("click", load);
+load();
+</script>
+</body>
+</html>
