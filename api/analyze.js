@@ -6,7 +6,7 @@
 //   SUPABASE_URL, SUPABASE_SECRET_KEY  — when both are set, analysis needs a signed-in user
 //   DAILY_LIMIT        optional — analyses per user per day, defaults to 15
 
-import { authEnabled, DAILY_LIMIT, getUser, rpc, usedToday } from "./_sb.js";
+import { authEnabled, DAILY_LIMIT, getUser, rpc, usedToday, keyProblem } from "./_sb.js";
 
 const MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-5-5";
 const MAX_IMAGE_B64 = 4_000_000;          // ~3 MB image; the client sends ~0.3–0.8 MB
@@ -111,7 +111,8 @@ export default async function handler(req, res) {
     try { used = await rpc("use_analysis", { p_user: user.id, p_limit: DAILY_LIMIT }); }
     catch (e) {
       console.error("usage rpc failed", e.message);
-      return res.status(500).json({ code: "server_config", error: "Usage tracking failed — has supabase/schema.sql been run?" });
+      const pg = (e.message.match(/"message":"([^"]{1,160})/) || [])[1] || e.message.slice(0, 160);
+      return res.status(500).json({ code: "server_config", error: keyProblem() || `Usage tracking failed: ${pg}` });
     }
     if (used === null) return res.status(429).json({ code: "daily_limit", error: "Daily limit reached", usage: { used: DAILY_LIMIT, limit: DAILY_LIMIT } });
   }

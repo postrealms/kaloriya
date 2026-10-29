@@ -45,3 +45,18 @@ export async function usedToday(userId) {
   const rows = await r.json();
   return rows?.[0]?.count || 0;
 }
+
+// Which kind of key is in SUPABASE_SECRET_KEY — used to explain configuration errors (never returns the key).
+export function keyProblem() {
+  if (!SB_KEY) return "SUPABASE_SECRET_KEY is empty";
+  if (SB_KEY.startsWith("sb_publishable_")) return "SUPABASE_SECRET_KEY holds the publishable key — use the secret key (sb_secret_…)";
+  if (SB_KEY.startsWith("sb_secret_")) return null;
+  if (SB_KEY.startsWith("eyJ")) {
+    try {
+      const role = JSON.parse(Buffer.from(SB_KEY.split(".")[1], "base64url").toString()).role;
+      if (role !== "service_role") return `SUPABASE_SECRET_KEY holds the legacy "${role}" key — use the secret key (sb_secret_…) or the legacy service_role key`;
+      return null;
+    } catch { return "SUPABASE_SECRET_KEY is not a valid key"; }
+  }
+  return "SUPABASE_SECRET_KEY is not a Supabase key";
+}
