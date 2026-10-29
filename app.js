@@ -265,7 +265,7 @@ async function analyze(image, W, hint, signal){
   });
   const j = await res.json().catch(()=>({}));
   if(j.usage) { usage = j.usage; renderAuthState(); }
-  if(!res.ok){ const e = new Error(j.code || "generic"); e.status = res.status; e.code = j.code; throw e; }
+  if(!res.ok){ const e = new Error(j.code || "generic"); e.status = res.status; e.code = j.code; e.detail = j.error || ""; throw e; }
   if(j._usage){ usage = j._usage; delete j._usage; renderAuthState(); }
   return j;
 }
@@ -301,7 +301,8 @@ $("#go").addEventListener("click", async ()=>{
     else if(!e.status) setStatus(t("err.network"), true);
     else {
       const key = "err." + (e.code || (e.status===429?"rate":e.status===413?"too_big":"generic"));
-      setStatus(I18N[lang][key] ? t(key) : t("err.generic"), true);
+      const detail = (e.code === "server_config" || key === "err.generic") && e.detail ? ` (${e.detail})` : "";
+      setStatus((I18N[lang][key] ? t(key) : t("err.generic")) + detail, true);
     }
   }finally{
     ctl = null; $("#stop").hidden = true; refresh();
